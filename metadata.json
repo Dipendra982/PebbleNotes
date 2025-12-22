@@ -1,0 +1,7 @@
+{
+  "name": "PebbleNote",
+  "description": "A modern digital study material marketplace for college students to buy and sell verified PDF notes.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
