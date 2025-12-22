@@ -1,8 +1,19 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Navbar = ({ user, onLogout }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleProfileClick = () => {
+    if (location.pathname === '/profile') {
+      navigate('/dashboard');
+    } else {
+      navigate('/profile');
+    }
+  };
+
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,11 +37,19 @@ const Navbar = ({ user, onLogout }) => {
               <div className="flex items-center space-x-5">
                 <Link to="/dashboard" className="text-xs font-semibold text-slate-500 hover:text-slate-900 uppercase tracking-wider transition">Dashboard</Link>
                 <div className="h-4 w-px bg-slate-200"></div>
-                <Link to="/profile" className="flex items-center space-x-2">
-                   <div className="w-7 h-7 rounded-full bg-slate-900 flex items-center justify-center text-white text-[10px] font-bold">
-                     {user.name.charAt(0).toUpperCase()}
-                   </div>
-                </Link>
+                <button onClick={handleProfileClick} className="flex items-center space-x-2 focus:outline-none">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-7 h-7 rounded-full object-cover border border-slate-200"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-slate-900 flex items-center justify-center text-white text-[10px] font-bold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </button>
                 <button onClick={onLogout} className="text-slate-400 hover:text-red-500 transition">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 </button>

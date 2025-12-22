@@ -12,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminUpload from './pages/AdminUpload';
+import Profile from './pages/Profile';
 
 const Layout = ({ user, onLogout, children }) => {
   const location = useLocation();
@@ -51,6 +52,11 @@ const App = () => {
     setStore.session(null);
   };
 
+  const handleUserUpdate = (updatedUser) => {
+    setUser(updatedUser);
+    setStore.session(updatedUser);
+  };
+
   return (
     <Router>
       <Layout user={user} onLogout={handleLogout}>
@@ -62,7 +68,7 @@ const App = () => {
           <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard user={user} />} />
           <Route path="/admin/upload" element={<AdminUpload user={user} />} />
-          <Route path="/profile" element={<Dashboard user={user} />} />
+          <Route path="/profile" element={<Profile user={user} onUserUpdate={handleUserUpdate} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>
