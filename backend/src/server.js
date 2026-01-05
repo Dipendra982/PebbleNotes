@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { checkConnection } from './config/database.js';
 import { noteRepository, userRepository, purchaseRepository, categoryRepository, favoritesRepository, reviewRepository } from './repositories/index.js';
 import bcrypt from 'bcrypt';
@@ -12,6 +16,8 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Middleware
 app.use(cors({
@@ -20,6 +26,42 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(morgan('dev'));
+
+// Static serving for uploaded files
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+const previewDir = path.join(uploadsDir, 'previews');
+const pdfDir = path.join(uploadsDir, 'pdfs');
+[uploadsDir, previewDir, pdfDir].forEach((d) => {
+  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+});
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Multer storage configuration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (file.fieldname === 'preview') cb(null, previewDir);
+    else if (file.fieldname === 'pdf') cb(null, pdfDir);
+    else cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, '_');
+    cb(null, `${Date.now()}_${base}${ext}`);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.fieldname === 'preview') {
+    const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    return cb(null, allowed.includes(file.mimetype));
+  }
+  if (file.fieldname === 'pdf') {
+    return cb(null, file.mimetype === 'application/pdf');
+  }
+  cb(null, true);
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } });
 
 // JWT Middleware
 const authenticateToken = (req, res, next) => {
@@ -45,6 +87,23 @@ const requireAdmin = (req, res, next) => {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
+};
+
+// Dev admin bypass helper (for college project simplicity)
+const devAdminBypass = async (req, res, next) => {
+  try {
+    const pass = req.headers['x-admin-pass'];
+    if (process.env.ADMIN_DEV_PASSWORD && pass === process.env.ADMIN_DEV_PASSWORD) {
+      const admin = await userRepository.findByEmail('admin@pebblenotes.com');
+      if (!admin) return res.status(403).json({ error: 'Admin account missing' });
+      req.user = { id: admin.id, email: admin.email, role: admin.role, name: admin.name };
+      return next();
+    }
+    // Fallback to normal JWT auth + admin check
+    return authenticateToken(req, res, () => requireAdmin(req, res, next));
+  } catch (e) {
+    return res.status(500).json({ error: 'Admin verification failed' });
+  }
 };
 
 // ============================================
@@ -231,13 +290,37 @@ app.get('/api/subjects', async (req, res) => {
   }
 });
 
-// Create note (admin only)
-app.post('/api/notes', authenticateToken, requireAdmin, async (req, res) => {
+// Create note (admin only) with optional file uploads
+app.post('/api/notes', devAdminBypass, upload.fields([{ name: 'preview', maxCount: 1 }, { name: 'pdf', maxCount: 1 }]), async (req, res) => {
   try {
+    const body = req.body || {};
+    const files = req.files || {};
+
+    let preview_image_url = body.preview_image_url;
+    if (files.preview && files.preview[0]) {
+      preview_image_url = `/uploads/previews/${files.preview[0].filename}`;
+    }
+    let pdf_url = body.pdf_url;
+    if (files.pdf && files.pdf[0]) {
+      pdf_url = `/uploads/pdfs/${files.pdf[0].filename}`;
+    }
+
     const noteData = {
-      ...req.body,
+      title: body.title,
+      description: body.description,
+      subject: body.subject,
+      category_id: body.category_id || null,
+      price: body.price ? Number(body.price) : 0,
+      original_price: body.original_price ? Number(body.original_price) : null,
+      preview_image_url,
+      pdf_url,
+      university: body.university || null,
+      course_code: body.course_code || null,
+      semester: body.semester || null,
+      year: body.year ? Number(body.year) : null,
+      tags: body.tags ? body.tags.split(',').map(t => t.trim()) : null,
       admin_id: req.user.id,
-      slug: req.body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      slug: body.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     };
     const note = await noteRepository.create(noteData);
     res.status(201).json(note);
