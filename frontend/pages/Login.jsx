@@ -14,7 +14,9 @@ const Login = () => {
   const [resetNew, setResetNew] = useState('');
   const [resetConfirm, setResetConfirm] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
-  const [showResetPass, setShowResetPass] = useState(false);
+  const [showOldPass, setShowOldPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,16 +185,25 @@ const Login = () => {
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
                   placeholder="you@college.edu"
                 />
-                <input
-                  type={showResetPass ? 'text' : 'password'}
-                  value={resetOld}
-                  onChange={(e) => setResetOld(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
-                  placeholder="Old password"
-                />
                 <div className="relative">
                   <input
-                    type={showResetPass ? 'text' : 'password'}
+                    type={showOldPass ? 'text' : 'password'}
+                    value={resetOld}
+                    onChange={(e) => setResetOld(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
+                    placeholder="Old password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPass(s => !s)}
+                    className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
+                  >
+                    {showOldPass ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
                     value={resetNew}
                     onChange={(e) => setResetNew(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
@@ -200,19 +211,28 @@ const Login = () => {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowResetPass(s => !s)}
+                    onClick={() => setShowNewPass(s => !s)}
                     className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
                   >
-                    {showResetPass ? 'Hide' : 'Show'}
+                    {showNewPass ? 'Hide' : 'Show'}
                   </button>
                 </div>
-                <input
-                  type={showResetPass ? 'text' : 'password'}
-                  value={resetConfirm}
-                  onChange={(e) => setResetConfirm(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
-                  placeholder="Confirm new password"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPass ? 'text' : 'password'}
+                    value={resetConfirm}
+                    onChange={(e) => setResetConfirm(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
+                    placeholder="Confirm new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(s => !s)}
+                    className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
+                  >
+                    {showConfirmPass ? 'Hide' : 'Show'}
+                  </button>
+                </div>
               </div>
               <div className="mt-4 flex items-center justify-end space-x-2">
                 <button onClick={() => setShowReset(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancel</button>
