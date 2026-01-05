@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { getStore } from '../store';
 import NoteCard from '../components/NoteCard';
 
 const Marketplace = () => {
@@ -8,11 +7,29 @@ const Marketplace = () => {
   const [search, setSearch] = useState('');
   const [subject, setSubject] = useState('All');
 
-  useEffect(() => {
-    setNotes(getStore.notes());
-  }, []);
+  const [subjects, setSubjects] = useState(['All']);
 
-  const subjects = ['All', ...Array.from(new Set(getStore.notes().map(n => n.subject)))];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('http://localhost:4000/api/notes');
+        const data = await res.json();
+        setNotes(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setNotes([]);
+      }
+
+      try {
+        const r = await fetch('http://localhost:4000/api/subjects');
+        const s = await r.json();
+        const list = (Array.isArray(s) ? s : []).filter(Boolean);
+        setSubjects(['All', ...list]);
+      } catch (e) {
+        setSubjects(['All']);
+      }
+    };
+    load();
+  }, []);
 
   const filteredNotes = notes.filter(n => {
     const matchesSearch = n.title.toLowerCase().includes(search.toLowerCase()) || 
@@ -55,9 +72,18 @@ const Marketplace = () => {
         {/* Grid */}
         {filteredNotes.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {filteredNotes.map(note => (
-              <NoteCard key={note.id} note={note} />
-            ))}
+            {filteredNotes.map(note => {
+              const normalized = {
+                id: note.id,
+                title: note.title,
+                subject: note.subject,
+                description: note.description,
+                price: Number(note.price || 0),
+                previewImageUrl: note.preview_image_url,
+                pdfUrl: note.pdf_url
+              };
+              return <NoteCard key={normalized.id} note={normalized} />
+            })}
           </div>
         ) : (
           <div className="text-center py-32 border border-dashed border-slate-200 rounded-3xl bg-white">
