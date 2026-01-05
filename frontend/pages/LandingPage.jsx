@@ -20,24 +20,24 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen selection:bg-blue-100">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-24 pb-32 px-4 bg-white">
+      <section className="relative overflow-hidden pt-28 pb-32 px-6 sm:px-8 lg:px-12 bg-white">
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
-        <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full mb-8">
-             <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
-             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Study with PebbleNotes</span>
+        <div className="max-w-7xl mx-auto text-center relative z-10">
+          <div className="inline-flex items-center space-x-2 bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-full mb-10">
+             <span className="flex h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+             <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Study with PebbleNotes</span>
           </div>
-          <h1 className="text-6xl md:text-7xl font-extrabold text-slate-900 mb-8 tracking-tighter leading-[1.05]">
+          <h1 className="text-6xl md:text-7xl font-extrabold text-slate-900 mb-10 tracking-tighter leading-[1.05]">
             Verified study material <br/><span className="text-slate-400">for the modern student.</span>
           </h1>
-          <p className="text-lg text-slate-500 mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
+          <p className="text-xl text-slate-500 mb-14 max-w-5xl mx-auto font-medium leading-relaxed">
             The professional marketplace for high-quality college notes. Browse, preview, and purchase trusted resources in one click.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <Link to="/marketplace" className="bg-slate-900 text-white px-8 py-3 rounded-lg font-bold text-sm hover:bg-slate-800 shadow-xl shadow-slate-200 transition">
+          <div className="flex flex-col sm:flex-row justify-center space-y-5 sm:space-y-0 sm:space-x-5">
+            <Link to="/marketplace" className="bg-slate-900 text-white px-10 py-4 rounded-lg font-bold text-base hover:bg-slate-800 shadow-xl shadow-slate-200 transition">
               Explore Library
             </Link>
-            <button onClick={handleBuyClick} className="bg-white text-slate-600 border border-slate-200 px-8 py-3 rounded-lg font-bold text-sm hover:bg-slate-50 transition">
+            <button onClick={handleBuyClick} className="bg-white text-slate-600 border border-slate-200 px-10 py-4 rounded-lg font-bold text-base hover:bg-slate-50 transition">
               Buy Your Notes
             </button>
           </div>
@@ -45,16 +45,16 @@ const LandingPage = () => {
       </section>
 
       {/* Featured Grid */}
-      <section className="py-24 border-y border-slate-100 bg-[#fcfcfc]">
+      <section className="py-28 border-y border-slate-100 bg-[#fcfcfc]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center mb-16">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-[0.2em] mb-3">Latest Releases</h2>
-              <div className="h-0.5 w-10 bg-blue-600"></div>
+              <h2 className="text-base font-bold text-slate-900 uppercase tracking-[0.2em] mb-4">Latest Releases</h2>
+              <div className="h-0.5 w-12 bg-blue-600"></div>
             </div>
-            <Link to="/marketplace" className="text-[10px] font-bold text-slate-400 hover:text-slate-900 transition uppercase tracking-widest">All Items →</Link>
+            <Link to="/marketplace" className="text-xs font-bold text-slate-400 hover:text-slate-900 transition uppercase tracking-widest">All Items →</Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {featuredNotes.map(note => (
               <NoteCard key={note.id} note={note} />
             ))}
@@ -63,18 +63,18 @@ const LandingPage = () => {
       </section>
 
       {/* Philosophy Section */}
-      <section className="py-32 bg-white px-4">
+      <section className="py-32 bg-white px-6 sm:px-8 lg:px-12">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-20">
             {[
               { title: 'Data Integrity', desc: 'Every document undergoes a rigorous verification process by subject experts.', icon: '🛡️' },
               { title: 'Global Access', desc: 'Secure payments powered by Khalti ensuring worldwide accessibility.', icon: '🌍' },
               { title: 'AI Enhanced', desc: 'Smarter insights generated by Google Gemini for every piece of content.', icon: '✨' },
             ].map((feature, idx) => (
               <div key={idx} className="group">
-                <div className="text-3xl mb-6 grayscale group-hover:grayscale-0 transition">{feature.icon}</div>
-                <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider">{feature.title}</h3>
-                <p className="text-slate-500 text-sm leading-relaxed">{feature.desc}</p>
+                <div className="text-4xl mb-6 grayscale group-hover:grayscale-0 transition">{feature.icon}</div>
+                <h3 className="text-base font-bold text-slate-900 mb-5 uppercase tracking-wider">{feature.title}</h3>
+                <p className="text-slate-500 text-base leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
@@ -82,11 +82,11 @@ const LandingPage = () => {
       </section>
 
       {/* Footer CTA */}
-      <section className="py-24 border-t border-slate-100 bg-slate-50">
-        <div className="max-w-3xl mx-auto text-center px-4">
-           <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-4">Start optimizing your study workflow.</h2>
-           <p className="text-slate-500 mb-10 text-sm font-medium">Join over 10,000+ students already using PebbleNote.</p>
-           <Link to="/signup" className="inline-block bg-slate-900 text-white px-10 py-3 rounded-lg font-bold text-sm hover:bg-slate-800 transition">
+      <section className="py-28 border-t border-slate-100 bg-slate-50">
+        <div className="max-w-6xl mx-auto text-center px-6 sm:px-8 lg:px-12">
+           <h2 className="text-4xl font-bold text-slate-900 tracking-tight mb-6">Start optimizing your study workflow.</h2>
+           <p className="text-slate-500 mb-10 text-base font-medium">Join over 10,000+ students already using PebbleNote.</p>
+           <Link to="/signup" className="inline-block bg-slate-900 text-white px-10 py-4 rounded-lg font-bold text-base hover:bg-slate-800 transition">
              Create Free Account
            </Link>
         </div>
