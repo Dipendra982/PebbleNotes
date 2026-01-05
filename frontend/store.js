@@ -3,53 +3,11 @@ const NOTES_KEY = 'pebble_notes';
 const PURCHASES_KEY = 'pebble_purchases';
 const SESSION_KEY = 'pebble_session';
 
-// Seed data if empty
-const initialNotes = [
-  {
-    id: '1',
-    title: 'Advanced Calculus Semester 1',
-    subject: 'Mathematics',
-    description: 'Comprehensive notes covering limits, derivatives, and integrations with solved examples.',
-    price: 15.00,
-    previewImageUrl: 'https://picsum.photos/seed/math1/400/300',
-    pdfUrl: '#',
-    adminId: 'admin1',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    title: 'Data Structures in C++',
-    subject: 'Computer Science',
-    description: 'Deep dive into linked lists, trees, graphs, and algorithm complexity analysis.',
-    price: 25.00,
-    previewImageUrl: 'https://picsum.photos/seed/cs1/400/300',
-    pdfUrl: '#',
-    adminId: 'admin1',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    title: 'Organic Chemistry II',
-    subject: 'Chemistry',
-    description: 'Focus on reaction mechanisms and spectroscopy. Includes high-quality diagrams.',
-    price: 10.00,
-    previewImageUrl: 'https://picsum.photos/seed/chem1/400/300',
-    pdfUrl: '#',
-    adminId: 'admin1',
-    createdAt: new Date().toISOString()
-  }
-];
+// No seed data; rely on backend API
 
 export const getStore = {
   users: () => JSON.parse(localStorage.getItem(USERS_KEY) || '[]'),
-  notes: () => {
-    const stored = localStorage.getItem(NOTES_KEY);
-    if (!stored) {
-      localStorage.setItem(NOTES_KEY, JSON.stringify(initialNotes));
-      return initialNotes;
-    }
-    return JSON.parse(stored);
-  },
+  notes: () => JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'),
   purchases: () => JSON.parse(localStorage.getItem(PURCHASES_KEY) || '[]'),
   session: () => JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'),
 };
