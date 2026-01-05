@@ -13,6 +13,7 @@ const Profile = ({ user, onUserUpdate }) => {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
   const fileInputRef = useRef(null);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
 
@@ -43,10 +44,23 @@ const Profile = ({ user, onUserUpdate }) => {
       const session = getStore.session();
       const token = session?.token;
       if (!token) throw new Error('Please sign in again.');
+      let newAvatarUrl = null;
+      if (avatarFile) {
+        const fd = new FormData();
+        fd.append('avatar', avatarFile);
+        const up = await fetch('http://localhost:4000/api/users/avatar', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd
+        });
+        const upJson = await up.json().catch(() => ({}));
+        if (!up.ok) throw new Error(upJson?.error || 'Avatar upload failed');
+        newAvatarUrl = upJson?.avatar || null;
+      }
       const res = await fetch('http://localhost:4000/api/users/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: formData.name, avatar: avatarPreview })
+        body: JSON.stringify({ name: formData.name })
       });
       let updated = {};
       const ct = res.headers.get('content-type') || '';
@@ -57,7 +71,7 @@ const Profile = ({ user, onUserUpdate }) => {
         if (!res.ok) throw new Error(text || 'Update failed');
       }
       if (!res.ok) throw new Error(updated?.error || 'Update failed');
-      const updatedUser = { ...user, name: updated.name ?? formData.name, avatar: updated.avatar ?? avatarPreview };
+      const updatedUser = { ...user, name: updated.name ?? formData.name, avatar: newAvatarUrl ?? updated.avatar ?? avatarPreview };
       setStore.session(updatedUser);
       if (typeof onUserUpdate === 'function') onUserUpdate(updatedUser);
       setIsEditing(false);
@@ -87,6 +101,7 @@ const Profile = ({ user, onUserUpdate }) => {
       if (typeof result === 'string') {
         setAvatarPreview(result);
       }
+      setAvatarFile(file);
       setIsEditing(true);
     };
     reader.readAsDataURL(file);
@@ -94,6 +109,7 @@ const Profile = ({ user, onUserUpdate }) => {
 
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
+    setAvatarFile(null);
     setIsEditing(true);
   };
 

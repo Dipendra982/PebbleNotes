@@ -8,6 +8,13 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetOld, setResetOld] = useState('');
+  const [resetNew, setResetNew] = useState('');
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showResetPass, setShowResetPass] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,6 +47,52 @@ const Login = () => {
       }
     } catch (err) {
       setError(err.message);
+      // Offer resend verification if blocked by verification requirement
+      if (err.message.toLowerCase().includes('verify your email')) {
+        try {
+          await fetch('http://localhost:4000/api/auth/resend-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+        } catch {}
+      }
+    }
+  };
+
+  const handleResetSubmit = async () => {
+    setError('');
+    if (!resetEmail || !resetOld || !resetNew || !resetConfirm) {
+      setError('All fields are required');
+      return;
+    }
+    if (resetNew !== resetConfirm) {
+      setError('New passwords do not match');
+      return;
+    }
+    if (resetNew.length < 6) {
+      setError('New password must be at least 6 characters');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail, current_password: resetOld, new_password: resetNew })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to change password');
+      setShowReset(false);
+      setResetEmail('');
+      setResetOld('');
+      setResetNew('');
+      setResetConfirm('');
+      setError('Password updated. Please sign in with new password.');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -107,8 +160,69 @@ const Login = () => {
             <p className="text-sm text-slate-600">
               Don't have an account? <Link to="/signup" className="font-bold text-blue-600 hover:text-blue-700">Sign up for free</Link>
             </p>
+            <button
+              type="button"
+              onClick={() => setShowReset(true)}
+              className="mt-3 text-xs font-bold text-slate-500 hover:text-slate-700 uppercase tracking-widest"
+            >
+              Forgot password?
+            </button>
           </div>
         </div>
+
+        {showReset && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900 mb-2">Change Password</h2>
+              <p className="text-xs text-slate-500 mb-4">Enter your email, old password, and new password.</p>
+              <div className="space-y-3">
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
+                  placeholder="you@college.edu"
+                />
+                <input
+                  type={showResetPass ? 'text' : 'password'}
+                  value={resetOld}
+                  onChange={(e) => setResetOld(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
+                  placeholder="Old password"
+                />
+                <div className="relative">
+                  <input
+                    type={showResetPass ? 'text' : 'password'}
+                    value={resetNew}
+                    onChange={(e) => setResetNew(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
+                    placeholder="New password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowResetPass(s => !s)}
+                    className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
+                  >
+                    {showResetPass ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+                <input
+                  type={showResetPass ? 'text' : 'password'}
+                  value={resetConfirm}
+                  onChange={(e) => setResetConfirm(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
+                  placeholder="Confirm new password"
+                />
+              </div>
+              <div className="mt-4 flex items-center justify-end space-x-2">
+                <button onClick={() => setShowReset(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancel</button>
+                <button onClick={handleResetSubmit} disabled={resetLoading} className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 disabled:opacity-60">
+                  {resetLoading ? 'Updating…' : 'Update Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

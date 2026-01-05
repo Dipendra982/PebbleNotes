@@ -196,7 +196,7 @@ const NoteDetail = ({ user }) => {
                       <span className="text-xs font-bold uppercase tracking-wider">Asset Unlocked</span>
                    </div>
                                      {note.pdfUrl ? (
-                                       <a href={note.pdfUrl} target="_blank" rel="noopener" download className="bg-slate-900 text-white px-8 py-3.5 rounded-lg font-bold text-xs hover:bg-slate-800 transition flex items-center justify-center space-x-2 shadow-xl shadow-slate-200">
+                                       <a href={`http://localhost:4000/api/notes/${note.id}/download`} target="_blank" rel="noopener" className="bg-slate-900 text-white px-8 py-3.5 rounded-lg font-bold text-xs hover:bg-slate-800 transition flex items-center justify-center space-x-2 shadow-xl shadow-slate-200">
                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                          <span>Download Verified PDF</span>
                                        </a>

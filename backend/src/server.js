@@ -6,7 +6,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { checkConnection } from './config/database.js';
+import { checkConnection, query } from './config/database.js';
 import { noteRepository, userRepository, purchaseRepository, categoryRepository, favoritesRepository, reviewRepository } from './repositories/index.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
@@ -45,7 +45,8 @@ app.use(morgan('dev'));
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 const previewDir = path.join(uploadsDir, 'previews');
 const pdfDir = path.join(uploadsDir, 'pdfs');
-[uploadsDir, previewDir, pdfDir].forEach((d) => {
+const avatarsDir = path.join(uploadsDir, 'avatars');
+[uploadsDir, previewDir, pdfDir, avatarsDir].forEach((d) => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
@@ -179,6 +180,27 @@ const sendVerificationEmail = async (user) => {
   }
 };
 
+const sendPasswordResetEmail = async (user, token) => {
+  const transporter = await createTransporter();
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/reset?token=${encodeURIComponent(token)}`;
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || 'PebbleNotes <no-reply@pebblenotes.local>',
+    to: user.email,
+    subject: 'Reset your PebbleNotes password',
+    text: `Hi ${user.name || ''},\n\nReset your password using the link below:\n${resetUrl}\n\nIf you did not request this, please ignore.`,
+    html: `<div style="font-family:system-ui, -apple-system, Segoe UI, Roboto;">
+             <h2>Reset your password</h2>
+             <p>Hi ${user.name || ''}, click the button below to reset your password.</p>
+             <p><a href="${resetUrl}" style="display:inline-block;padding:10px 16px;background:#1f2937;color:white;border-radius:8px;text-decoration:none">Reset Password</a></p>
+             <p>If it doesn't work, copy this link:<br/><code>${resetUrl}</code></p>
+           </div>`
+  });
+  if (nodemailer.getTestMessageUrl) {
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) console.log('📧 Reset email preview URL:', previewUrl);
+  }
+};
+
 // ============================================
 // AUTH ROUTES
 // ============================================
@@ -259,6 +281,98 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Forgot password
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const user = await userRepository.findByEmail(email);
+    // For project simplicity, respond success even if user not found
+    if (!user) return res.json({ message: 'If the account exists, an email was sent.' });
+    // Create reset token, expires in 1 hour
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    // Persist in password_reset_tokens
+    await query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+      [user.id, token]
+    );
+    await sendPasswordResetEmail(user, token);
+    return res.json({ message: 'Password reset link sent to your email.' });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(500).json({ error: 'Failed to initiate reset' });
+  }
+});
+
+// Reset password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, new_password } = req.body || {};
+    if (!token || !new_password) return res.status(400).json({ error: 'Token and new password required' });
+    let payload;
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+    const { id, email } = payload;
+    const user = await userRepository.findById(id);
+    if (!user || user.email !== email) return res.status(400).json({ error: 'Invalid token' });
+    // Check token exists and not expired
+    const t = await query(
+      `SELECT id FROM password_reset_tokens WHERE user_id = $1 AND token = $2 AND expires_at > NOW()`,
+      [id, token]
+    );
+    if (t.rows.length === 0) return res.status(400).json({ error: 'Invalid or expired token' });
+    const password_hash = await bcrypt.hash(new_password, 10);
+    await userRepository.update(id, { password_hash });
+    // Cleanup tokens for user
+    await query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [id]);
+    return res.json({ message: 'Password reset successful. You can now sign in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Resend verification email
+app.post('/api/auth/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const user = await userRepository.findByEmail(email);
+    if (!user) return res.json({ message: 'If the account exists, verification was sent.' });
+    if (user.is_verified) return res.json({ message: 'Account already verified.' });
+    await sendVerificationEmail(user);
+    return res.json({ message: 'Verification email sent.' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    return res.status(500).json({ error: 'Failed to resend verification' });
+  }
+});
+
+// Change password using email + current password (unauthenticated)
+app.post('/api/auth/change-password', async (req, res) => {
+  try {
+    const { email, current_password, new_password } = req.body || {};
+    if (!email || !current_password || !new_password) {
+      return res.status(400).json({ error: 'Email, current and new passwords are required' });
+    }
+    const user = await userRepository.findByEmail(email);
+    // For simplicity, return generic error if user missing
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    const password_hash = await bcrypt.hash(new_password, 10);
+    await userRepository.update(user.id, { password_hash });
+    return res.json({ message: 'Password updated successfully. Please sign in with your new password.' });
+  } catch (error) {
+    console.error('Auth change-password error:', error);
+    return res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
 // Verify email
 app.get('/api/auth/verify', async (req, res) => {
   try {
@@ -332,6 +446,20 @@ app.delete('/api/users/me', authenticateToken, async (req, res) => {
     return res.json({ message: 'Account deleted successfully' });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
+// Upload avatar (image) and set on user profile
+app.post('/api/users/avatar', authenticateToken, multer({ storage }).single('avatar'), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'No file uploaded' });
+    const avatarUrl = `/uploads/avatars/${file.filename}`;
+    const user = await userRepository.update(req.user.id, { avatar: avatarUrl });
+    return res.json({ avatar: user.avatar });
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    return res.status(500).json({ error: 'Failed to upload avatar' });
   }
 });
 
@@ -451,6 +579,31 @@ app.delete('/api/notes/:id', authenticateToken, requireAdmin, async (req, res) =
     res.json({ message: 'Note deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete note' });
+  }
+});
+
+// Secure PDF download (must be purchased or admin)
+app.get('/api/notes/:id/download', authenticateToken, async (req, res) => {
+  try {
+    const note = await noteRepository.findById(req.params.id);
+    if (!note) return res.status(404).json({ error: 'Note not found' });
+    const isAdmin = req.user.role === 'ADMIN';
+    const hasPurchased = await purchaseRepository.hasPurchased(req.user.id, req.params.id);
+    if (!isAdmin && !hasPurchased) return res.status(403).json({ error: 'Purchase required' });
+
+    const url = note.pdf_url || '';
+    if (!url) return res.status(404).json({ error: 'PDF not available' });
+    if (url.startsWith('/uploads/pdfs/')) {
+      const filename = path.basename(url);
+      const filePath = path.join(pdfDir, filename);
+      if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing' });
+      return res.download(filePath, filename);
+    }
+    // External URL: redirect if purchased
+    return res.redirect(url);
+  } catch (error) {
+    console.error('Download error:', error);
+    res.status(500).json({ error: 'Failed to download' });
   }
 });
 
