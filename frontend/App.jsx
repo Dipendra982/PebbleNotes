@@ -36,6 +36,18 @@ const App = () => {
     if (session) setUser(session);
   }, []);
 
+  // Component inside Router to sync user on route changes
+  const RouteSync = () => {
+    const location = useLocation();
+    useEffect(() => {
+      const session = getStore.session();
+      if (session && (!user || session.email !== user.email || session.role !== user.role)) {
+        setUser(session);
+      }
+    }, [location]);
+    return null;
+  };
+
   // Session management will be implemented in future; login page handles redirects
 
   const handleLogout = () => {
@@ -50,6 +62,7 @@ const App = () => {
 
   return (
     <Router>
+      <RouteSync />
       <Layout user={user} onLogout={handleLogout}>
         <Routes>
           <Route path="/" element={<LandingPage />} />

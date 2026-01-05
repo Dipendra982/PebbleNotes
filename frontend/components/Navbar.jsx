@@ -29,6 +29,9 @@ const Navbar = ({ user, onLogout }) => {
             <div className="hidden md:flex items-center space-x-6">
               <Link to="/marketplace" className="text-xs font-semibold text-slate-500 hover:text-slate-900 uppercase tracking-wider transition">Marketplace</Link>
                 <Link to="/about" className="text-xs font-semibold text-slate-500 hover:text-slate-900 uppercase tracking-wider transition">About</Link>
+                {user?.role === 'ADMIN' && (
+                  <Link to="/admin/upload" className="text-xs font-semibold text-blue-600 hover:text-blue-700 uppercase tracking-wider transition">Admin Upload</Link>
+                )}
             </div>
           </div>
 

@@ -19,8 +19,24 @@ const Login = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
-      // Store minimal session in memory via URL route or future context; for now, redirect
-      navigate('/marketplace');
+      const { user, token } = data;
+      if (user && token) {
+        try {
+          localStorage.setItem('pebble_session', JSON.stringify({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            avatar: user.avatar,
+            token
+          }));
+        } catch {}
+      }
+      if (user?.role === 'ADMIN') {
+        navigate('/admin/upload');
+      } else {
+        navigate('/marketplace');
+      }
     } catch (err) {
       setError(err.message);
     }
