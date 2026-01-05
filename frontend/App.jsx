@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminUpload from './pages/AdminUpload';
 import Profile from './pages/Profile';
+import About from './pages/About';
 
 const Layout = ({ user, onLogout, children }) => {
   const location = useLocation();
@@ -63,6 +64,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/about" element={<About />} />
           <Route path="/notes/:id" element={<NoteDetail user={user} />} />
           <Route path="/signin" element={<Login onLogin={handleLogin} />} />
           <Route path="/signup" element={<Signup />} />

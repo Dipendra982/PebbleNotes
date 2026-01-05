@@ -48,7 +48,6 @@ const Dashboard = ({ user }) => {
             </div>
           </div>
           <div className="flex items-center space-x-3">
-             <button className="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition">Settings</button>
              <Link to="/marketplace" className="px-4 py-2 text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition">Buy Your Notes</Link>
              {user.role === 'ADMIN' && (
               <Link to="/admin/upload" className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm shadow-blue-100 flex items-center">
