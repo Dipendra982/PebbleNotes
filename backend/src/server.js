@@ -303,6 +303,36 @@ app.put('/api/users/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Change password
+app.post('/api/users/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+    // Fetch full user with password
+    const fullUser = await userRepository.findByEmail(req.user.email);
+    if (!fullUser) return res.status(404).json({ error: 'User not found' });
+    const valid = await bcrypt.compare(current_password, fullUser.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+    const password_hash = await bcrypt.hash(new_password, 10);
+    await userRepository.update(req.user.id, { password_hash });
+    return res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// Delete account (simple delete for college project)
+app.delete('/api/users/me', authenticateToken, async (req, res) => {
+  try {
+    await userRepository.delete(req.user.id);
+    return res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
 // Get all users (admin only)
 app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
