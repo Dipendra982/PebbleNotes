@@ -13,6 +13,11 @@ const LandingPage = () => {
         const res = await fetch('http://localhost:4000/api/notes?limit=4&is_featured=true');
         const data = await res.json();
         const list = Array.isArray(data) ? data : [];
+        const makeAbsolute = (url) => {
+          if (!url) return url;
+          if (url.startsWith('/uploads')) return `http://localhost:4000${url}`;
+          return url;
+        };
         setFeaturedNotes(
           list.map(n => ({
             id: n.id,
@@ -20,8 +25,8 @@ const LandingPage = () => {
             subject: n.subject,
             description: n.description,
             price: Number(n.price || 0),
-            previewImageUrl: n.preview_image_url,
-            pdfUrl: n.pdf_url
+            previewImageUrl: makeAbsolute(n.preview_image_url),
+            pdfUrl: makeAbsolute(n.pdf_url)
           }))
         );
       } catch {
