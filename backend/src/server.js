@@ -227,11 +227,19 @@ app.post('/api/auth/register', async (req, res) => {
       university,
       role: 'USER'
     });
-    // Send verification email
-    await sendVerificationEmail(user);
-    res.status(201).json({
-      message: 'Registration successful. Please check your email to verify your account.'
-    });
+    // Send verification email (do not fail registration if email sending fails)
+    try {
+      await sendVerificationEmail(user);
+      res.status(201).json({
+        message: 'Registration successful. Please check your email to verify your account.'
+      });
+    } catch (mailError) {
+      console.error('Email send failed (verification):', mailError);
+      // Still return success so user can use resend verification later
+      res.status(201).json({
+        message: 'Registration successful. Verification email could not be sent right now. Please try "Resend verification" from Sign In.'
+      });
+    }
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
