@@ -36,7 +36,9 @@ app.use(cors({
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization','x-admin-pass']
 }));
-app.use(express.json());
+// Allow larger JSON bodies (for base64 avatars) and forms
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 app.use(morgan('dev'));
 
 // Static serving for uploaded files
