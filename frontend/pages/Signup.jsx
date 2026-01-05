@@ -11,6 +11,7 @@ const Signup = () => {
     email: '',
     password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const [status, setStatus] = useState('');
   const handleSubmit = async (e) => {
@@ -72,14 +73,24 @@ const Signup = () => {
             </div>
             <div>
               <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-widest mb-2">Password</label>
-              <input
-                required
-                type="password"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={e => setFormData({...formData, password: e.target.value})}
-              />
+              <div className="relative">
+                <input
+                  required
+                  type={showPassword ? 'text' : 'password'}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(s => !s)}
+                  className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
             <div>
               <button
