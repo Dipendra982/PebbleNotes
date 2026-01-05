@@ -17,6 +17,8 @@ const Login = () => {
   const [showOldPass, setShowOldPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [awaiting, setAwaiting] = useState(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,14 +53,61 @@ const Login = () => {
       setError(err.message);
       // Offer resend verification if blocked by verification requirement
       if (err.message.toLowerCase().includes('verify your email')) {
-        try {
-          await fetch('http://localhost:4000/api/auth/resend-verification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-          });
-        } catch {}
+        // Track awaiting verification for countdown
+        const payload = { email, requestedAt: Date.now() };
+        try { localStorage.setItem('awaiting_verification', JSON.stringify(payload)); } catch {}
+        setAwaiting(payload);
+        startCountdown(payload);
       }
+    }
+  };
+
+  const startCountdown = (payload) => {
+    const ms = 60000 - (Date.now() - (payload?.requestedAt || Date.now()));
+    const initial = Math.max(0, Math.ceil(ms / 1000));
+    setSecondsLeft(initial);
+    // Tick each second
+    const timer = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  React.useEffect(() => {
+    // Load awaiting verification info on mount
+    try {
+      const raw = localStorage.getItem('awaiting_verification');
+      if (raw) {
+        const payload = JSON.parse(raw);
+        setAwaiting(payload);
+        startCountdown(payload);
+      }
+    } catch {}
+  }, []);
+
+  const handleResendVerification = async () => {
+    if (!awaiting?.email) return;
+    setError('');
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: awaiting.email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Resend failed');
+      const payload = { email: awaiting.email, requestedAt: Date.now() };
+      try { localStorage.setItem('awaiting_verification', JSON.stringify(payload)); } catch {}
+      setAwaiting(payload);
+      startCountdown(payload);
+      setError('Verification email resent. Check your inbox.');
+    } catch (e) {
+      setError(e.message);
     }
   };
 
@@ -111,6 +160,22 @@ const Login = () => {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+          {awaiting && (
+            <div className="mb-4 p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600 flex items-center justify-between">
+              <span>
+                We sent a verification link to <span className="font-bold">{awaiting.email}</span>. Link valid for 1 minute.
+                {secondsLeft > 0 && <> You can resend in <span className="font-bold">{secondsLeft}s</span>.</>}
+              </span>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={secondsLeft > 0}
+                className="ml-3 px-3 py-2 rounded-lg bg-slate-900 text-white font-bold disabled:opacity-60"
+              >
+                Resend
+              </button>
+            </div>
+          )}
           <h1 className="text-2xl font-extrabold text-slate-900 mb-1">Welcome back</h1>
           <p className="text-sm text-slate-500 mb-8">Sign in to continue</p>
 

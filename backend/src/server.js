@@ -158,19 +158,20 @@ const createTransporter = async () => {
 
 const sendVerificationEmail = async (user) => {
   const transporter = await createTransporter();
-  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '24h' });
+  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1m' });
   const verifyUrl = `${process.env.BACKEND_URL || 'http://localhost:4000'}/api/auth/verify?token=${encodeURIComponent(token)}`;
 
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || 'PebbleNotes <no-reply@pebblenotes.local>',
     to: user.email,
     subject: 'Verify your PebbleNotes account',
-    text: `Hi ${user.name || ''},\n\nPlease verify your account by clicking the link below:\n${verifyUrl}\n\nThis link expires in 24 hours.`,
+    text: `Hi ${user.name || ''},\n\nPlease verify your account by clicking the link below:\n${verifyUrl}\n\nThis link expires in 1 minute. If it expires, use the Resend verification button from Sign In.`,
     html: `<div style="font-family:system-ui, -apple-system, Segoe UI, Roboto;">
              <h2>Verify your PebbleNotes account</h2>
-             <p>Hi ${user.name || ''}, please verify your account by clicking the button below.</p>
+             <p>Hi ${user.name || ''}, please verify your account by clicking the button below. This link is valid for <strong>1 minute</strong>.</p>
              <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#1f2937;color:white;border-radius:8px;text-decoration:none">Verify Account</a></p>
              <p>If the button doesn't work, copy this link:<br/><code>${verifyUrl}</code></p>
+             <p style="margin-top:12px;color:#6b7280;font-size:14px">Expired? Use the <em>Resend verification</em> on the Sign In page.</p>
            </div>`
   });
 

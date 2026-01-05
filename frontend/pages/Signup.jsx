@@ -14,6 +14,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const [status, setStatus] = useState('');
+  const [showSentModal, setShowSentModal] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus('');
@@ -25,8 +26,14 @@ const Signup = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Registration failed');
-      setStatus('Registration successful. Please check your email to verify your account.');
-      setTimeout(() => navigate('/signin'), 1200);
+      // Store awaiting verification info to drive countdown on Sign In
+      try {
+        localStorage.setItem('awaiting_verification', JSON.stringify({ email: formData.email, requestedAt: Date.now() }));
+      } catch {}
+      setShowSentModal(true);
+      setStatus('Registration successful. Check your email.');
+      // Redirect to sign-in shortly
+      setTimeout(() => navigate('/signin'), 2000);
     } catch (err) {
       setStatus(err.message);
     }
@@ -110,6 +117,18 @@ const Signup = () => {
           </div>
         </div>
       </div>
+      {showSentModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 mb-2">Verification Email Sent</h2>
+            <p className="text-xs text-slate-600 mb-3">We sent a verification link to <span className="font-bold">{formData.email}</span>.</p>
+            <p className="text-xs text-slate-600">The link is valid for <span className="font-bold">1 minute</span>. You'll be redirected to Sign In. If it expires, you can resend from there.</p>
+            <div className="mt-4 flex items-center justify-end">
+              <button onClick={() => setShowSentModal(false)} className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
