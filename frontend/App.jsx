@@ -29,12 +29,8 @@ const Layout = ({ user, onLogout, children }) => {
 };
 
 const App = () => {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const session = getStore.session();
-    if (session) setUser(session);
-  }, []);
+  // Initialize user immediately from localStorage to avoid refresh redirect
+  const [user, setUser] = useState(() => getStore.session());
 
   // Component inside Router to sync user on route changes
   const RouteSync = () => {
