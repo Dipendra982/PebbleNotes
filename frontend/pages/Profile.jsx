@@ -11,6 +11,7 @@ const Profile = ({ user, onUserUpdate }) => {
     password: ''
   });
   const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' });
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = useRef(null);
   const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
@@ -37,34 +38,36 @@ const Profile = ({ user, onUserUpdate }) => {
     });
   };
 
-  const handleSaveChanges = () => {
-    // Update user in local storage
-    const updatedUser = {
-      ...user,
-      name: formData.name,
-      email: formData.email,
-      avatar: avatarPreview || null
-    };
-    
-    // Update session
-    setStore.session(updatedUser);
-    
-    // Update in users list
-    const users = getStore.users();
-    const userIndex = users.findIndex(u => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex] = updatedUser;
-      localStorage.setItem('pebble_users', JSON.stringify(users));
+  const handleSaveChanges = async () => {
+    try {
+      const session = getStore.session();
+      const token = session?.token;
+      if (!token) throw new Error('Please sign in again.');
+      const res = await fetch('http://localhost:4000/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: formData.name, avatar: avatarPreview })
+      });
+      let updated = {};
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        try { updated = await res.json(); } catch { updated = {}; }
+      } else {
+        const text = await res.text();
+        if (!res.ok) throw new Error(text || 'Update failed');
+      }
+      if (!res.ok) throw new Error(updated?.error || 'Update failed');
+      const updatedUser = { ...user, name: updated.name ?? formData.name, avatar: updated.avatar ?? avatarPreview };
+      setStore.session(updatedUser);
+      if (typeof onUserUpdate === 'function') onUserUpdate(updatedUser);
+      setIsEditing(false);
+      setToast({ open: true, message: 'All changes saved successfully', type: 'success' });
+      setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 2200);
+      setTimeout(() => navigate('/dashboard'), 1500);
+    } catch (e) {
+      setToast({ open: true, message: e.message || 'Update failed', type: 'error' });
+      setTimeout(() => setToast({ open: false, message: '', type: 'error' }), 2200);
     }
-    
-    setIsEditing(false);
-    // Notify app so Navbar updates immediately
-    if (typeof onUserUpdate === 'function') onUserUpdate(updatedUser);
-    // Show success toast
-    setToast({ open: true, message: 'All changes saved successfully', type: 'success' });
-    setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 2200);
-    // After a short delay, leave the profile page (returns to dashboard)
-    setTimeout(() => navigate('/dashboard'), 1500);
   };
 
   const getInitials = (name) => {
@@ -275,24 +278,99 @@ const Profile = ({ user, onUserUpdate }) => {
                   <input
                     type="password"
                     placeholder="Current Password"
+                    value={passwords.current}
+                    onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <input
                     type="password"
                     placeholder="New Password"
+                    value={passwords.next}
+                    onChange={(e) => setPasswords({ ...passwords, next: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <input
                     type="password"
                     placeholder="Confirm New Password"
+                    value={passwords.confirm}
+                    onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <button className="w-full py-2 px-4 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition">
+                  <button
+                    onClick={async () => {
+                      if (!passwords.current || !passwords.next) {
+                        setToast({ open: true, message: 'Please fill all fields', type: 'error' });
+                        setTimeout(() => setToast({ open: false, message: '', type: 'error' }), 2000);
+                        return;
+                      }
+                      if (passwords.next !== passwords.confirm) {
+                        setToast({ open: true, message: 'Passwords do not match', type: 'error' });
+                        setTimeout(() => setToast({ open: false, message: '', type: 'error' }), 2000);
+                        return;
+                      }
+                      try {
+                        const session = getStore.session();
+                        const token = session?.token;
+                        if (!token) throw new Error('Please sign in again.');
+                        const res = await fetch('http://localhost:4000/api/users/change-password', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ current_password: passwords.current, new_password: passwords.next })
+                        });
+                        const j = await res.json();
+                        if (!res.ok) throw new Error(j?.error || 'Failed to update password');
+                        setToast({ open: true, message: 'Password updated successfully', type: 'success' });
+                        setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 2200);
+                        setPasswords({ current: '', next: '', confirm: '' });
+                        setShowPasswordChange(false);
+                      } catch (e) {
+                        setToast({ open: true, message: e.message, type: 'error' });
+                        setTimeout(() => setToast({ open: false, message: '', type: 'error' }), 2200);
+                      }
+                    }}
+                    className="w-full py-2 px-4 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition"
+                  >
                     Update Password
                   </button>
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Danger Zone */}
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Danger Zone</span>
+            <div className="mt-3 flex items-center justify-between bg-red-50 border border-red-100 rounded-lg p-4">
+              <div>
+                <p className="text-sm font-semibold text-red-700">Delete Account</p>
+                <p className="text-xs text-red-600">This action is permanent and will remove your account.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (!confirm('Are you sure you want to delete your account?')) return;
+                  try {
+                    const session = getStore.session();
+                    const token = session?.token;
+                    if (!token) throw new Error('Please sign in again.');
+                    const res = await fetch('http://localhost:4000/api/users/me', {
+                      method: 'DELETE',
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const j = await res.json();
+                    if (!res.ok) throw new Error(j?.error || 'Failed to delete');
+                    // Clear session and redirect
+                    setStore.session(null);
+                    navigate('/signup');
+                  } catch (e) {
+                    setToast({ open: true, message: e.message, type: 'error' });
+                    setTimeout(() => setToast({ open: false, message: '', type: 'error' }), 2200);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>
