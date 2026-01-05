@@ -4,19 +4,14 @@ import { Link, useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const navigate = useNavigate();
+  const API_BASE = `${window.location.protocol}//${window.location.hostname}:4000`;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [resetOld, setResetOld] = useState('');
-  const [resetNew, setResetNew] = useState('');
-  const [resetConfirm, setResetConfirm] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
-  const [showOldPass, setShowOldPass] = useState(false);
-  const [showNewPass, setShowNewPass] = useState(false);
-  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [awaiting, setAwaiting] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
 
@@ -24,7 +19,7 @@ const Login = () => {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch('http://localhost:4000/api/auth/login', {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -94,7 +89,7 @@ const Login = () => {
     if (!awaiting?.email) return;
     setError('');
     try {
-      const res = await fetch('http://localhost:4000/api/auth/resend-verification', {
+      const res = await fetch(`${API_BASE}/api/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: awaiting.email })
@@ -113,33 +108,22 @@ const Login = () => {
 
   const handleResetSubmit = async () => {
     setError('');
-    if (!resetEmail || !resetOld || !resetNew || !resetConfirm) {
-      setError('All fields are required');
-      return;
-    }
-    if (resetNew !== resetConfirm) {
-      setError('New passwords do not match');
-      return;
-    }
-    if (resetNew.length < 6) {
-      setError('New password must be at least 6 characters');
+    if (!resetEmail) {
+      setError('Please enter your account email');
       return;
     }
     setResetLoading(true);
     try {
-      const res = await fetch('http://localhost:4000/api/auth/change-password', {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: resetEmail, current_password: resetOld, new_password: resetNew })
+        body: JSON.stringify({ email: resetEmail })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to change password');
+      if (!res.ok) throw new Error(data.error || 'Failed to send reset link');
       setShowReset(false);
       setResetEmail('');
-      setResetOld('');
-      setResetNew('');
-      setResetConfirm('');
-      setError('Password updated. Please sign in with new password.');
+      setError('Reset link sent. Check your email on your phone.');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -240,8 +224,8 @@ const Login = () => {
         {showReset && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900 mb-2">Change Password</h2>
-              <p className="text-xs text-slate-500 mb-4">Enter your email, old password, and new password.</p>
+              <h2 className="text-lg font-bold text-slate-900 mb-2">Reset Password</h2>
+              <p className="text-xs text-slate-500 mb-4">Enter your account email. We'll send a reset link you can open on your phone.</p>
               <div className="space-y-3">
                 <input
                   type="email"
@@ -250,59 +234,11 @@ const Login = () => {
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
                   placeholder="you@college.edu"
                 />
-                <div className="relative">
-                  <input
-                    type={showOldPass ? 'text' : 'password'}
-                    value={resetOld}
-                    onChange={(e) => setResetOld(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
-                    placeholder="Old password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowOldPass(s => !s)}
-                    className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
-                  >
-                    {showOldPass ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showNewPass ? 'text' : 'password'}
-                    value={resetNew}
-                    onChange={(e) => setResetNew(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
-                    placeholder="New password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPass(s => !s)}
-                    className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
-                  >
-                    {showNewPass ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type={showConfirmPass ? 'text' : 'password'}
-                    value={resetConfirm}
-                    onChange={(e) => setResetConfirm(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white pr-12"
-                    placeholder="Confirm new password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPass(s => !s)}
-                    className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
-                  >
-                    {showConfirmPass ? 'Hide' : 'Show'}
-                  </button>
-                </div>
               </div>
               <div className="mt-4 flex items-center justify-end space-x-2">
                 <button onClick={() => setShowReset(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancel</button>
                 <button onClick={handleResetSubmit} disabled={resetLoading} className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 disabled:opacity-60">
-                  {resetLoading ? 'Updating…' : 'Update Password'}
+                  {resetLoading ? 'Sending…' : 'Send Reset Link'}
                 </button>
               </div>
             </div>
