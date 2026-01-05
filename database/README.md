@@ -113,7 +113,7 @@ postgresql://postgres:root@localhost:5432/pebblenotes
 | Field | Value |
 |-------|-------|
 | Email | admin@pebblenotes.com |
-| Password | admin123 |
+| Password | admin1234 |
 | Role | ADMIN |
 
 ⚠️ **Change this password in production!**

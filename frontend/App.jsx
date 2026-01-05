@@ -36,17 +36,7 @@ const App = () => {
     if (session) setUser(session);
   }, []);
 
-  const handleLogin = (email, role) => {
-    const newUser = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: email.split('@')[0],
-      email: email,
-      role: role
-    };
-    setUser(newUser);
-    setStore.session(newUser);
-    setStore.user(newUser);
-  };
+  // Session management will be implemented in future; login page handles redirects
 
   const handleLogout = () => {
     setUser(null);
@@ -66,7 +56,7 @@ const App = () => {
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/about" element={<About />} />
           <Route path="/notes/:id" element={<NoteDetail user={user} />} />
-          <Route path="/signin" element={<Login onLogin={handleLogin} />} />
+          <Route path="/signin" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard user={user} />} />
           <Route path="/admin/upload" element={<AdminUpload user={user} />} />

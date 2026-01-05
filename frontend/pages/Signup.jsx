@@ -12,17 +12,23 @@ const Signup = () => {
     password: ''
   });
 
-  const handleSubmit = (e) => {
+  const [status, setStatus] = useState('');
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const newUser = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: formData.name,
-      email: formData.email,
-      role: role
-    };
-    setStore.user(newUser);
-    setStore.session(newUser);
-    window.location.href = '/#/dashboard';
+    setStatus('');
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: formData.name, email: formData.email, password: formData.password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Registration failed');
+      setStatus('Registration successful. Please check your email to verify your account.');
+      setTimeout(() => navigate('/signin'), 1200);
+    } catch (err) {
+      setStatus(err.message);
+    }
   };
 
   return (
@@ -84,6 +90,7 @@ const Signup = () => {
           </form>
 
           <div className="mt-8 text-center">
+            {status && <p className="text-sm font-medium text-blue-600 mb-4">{status}</p>}
             <p className="text-sm text-gray-600">
               Already have an account? <Link to="/signin" className="font-bold text-blue-600 hover:text-blue-500">Sign in here</Link>
             </p>

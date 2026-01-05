@@ -1,24 +1,29 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getStore, setStore } from '../store';
 
-const Login = ({ onLogin }) => {
+const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const users = getStore.users();
-    const user = users.find(u => u.email === email);
-    
-    if (user) {
-      onLogin(user.email, user.role);
-    } else {
-      onLogin(email, email.includes('admin') ? 'ADMIN' : 'USER');
+    setError('');
+    try {
+      const res = await fetch('http://localhost:4000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      // Store minimal session in memory via URL route or future context; for now, redirect
+      navigate('/marketplace');
+    } catch (err) {
+      setError(err.message);
     }
-    navigate('/dashboard');
   };
 
   return (
@@ -41,6 +46,7 @@ const Login = ({ onLogin }) => {
             </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
+              {error && <p className="text-sm font-medium text-red-600 mb-4">{error}</p>}
               <input 
                 required
                 type="password" 
@@ -68,16 +74,7 @@ const Login = ({ onLogin }) => {
 
           <div className="mt-8 pt-8 border-t border-gray-100 text-center">
              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-4">Demo Accounts</p>
-             <div className="flex justify-center space-x-4">
-                <button 
-                  onClick={() => { setEmail('student@demo.com'); setPassword('password'); }}
-                  className="text-xs font-medium bg-gray-50 px-3 py-1 rounded-full text-gray-500 hover:bg-gray-100 transition"
-                >Student Demo</button>
-                <button 
-                  onClick={() => { setEmail('admin@demo.com'); setPassword('password'); }}
-                  className="text-xs font-medium bg-gray-50 px-3 py-1 rounded-full text-gray-500 hover:bg-gray-100 transition"
-                >Admin Demo</button>
-             </div>
+             <div className="flex justify-center space-x-4 text-xs text-gray-400">Use your registered email to sign in.</div>
           </div>
         </div>
       </div>

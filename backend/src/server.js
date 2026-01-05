@@ -10,6 +10,7 @@ import { checkConnection } from './config/database.js';
 import { noteRepository, userRepository, purchaseRepository, categoryRepository, favoritesRepository, reviewRepository } from './repositories/index.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 
 // Load environment variables
 dotenv.config();
@@ -20,9 +21,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Middleware
+const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow non-browser requests
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','x-admin-pass']
 }));
 app.use(express.json());
 app.use(morgan('dev'));
@@ -120,6 +132,52 @@ app.get('/api/health', async (req, res) => {
 });
 
 // ============================================
+// EMAIL / VERIFICATION UTILITIES
+// ============================================
+
+const createTransporter = async () => {
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+  }
+  const testAccount = await nodemailer.createTestAccount();
+  return nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: { user: testAccount.user, pass: testAccount.pass }
+  });
+};
+
+const sendVerificationEmail = async (user) => {
+  const transporter = await createTransporter();
+  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '24h' });
+  const verifyUrl = `${process.env.BACKEND_URL || 'http://localhost:4000'}/api/auth/verify?token=${encodeURIComponent(token)}`;
+
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || 'PebbleNotes <no-reply@pebblenotes.local>',
+    to: user.email,
+    subject: 'Verify your PebbleNotes account',
+    text: `Hi ${user.name || ''},\n\nPlease verify your account by clicking the link below:\n${verifyUrl}\n\nThis link expires in 24 hours.`,
+    html: `<div style="font-family:system-ui, -apple-system, Segoe UI, Roboto;">
+             <h2>Verify your PebbleNotes account</h2>
+             <p>Hi ${user.name || ''}, please verify your account by clicking the button below.</p>
+             <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#1f2937;color:white;border-radius:8px;text-decoration:none">Verify Account</a></p>
+             <p>If the button doesn't work, copy this link:<br/><code>${verifyUrl}</code></p>
+           </div>`
+  });
+
+  if (nodemailer.getTestMessageUrl) {
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) console.log('📧 Email preview URL:', previewUrl);
+  }
+};
+
+// ============================================
 // AUTH ROUTES
 // ============================================
 
@@ -145,17 +203,10 @@ app.post('/api/auth/register', async (req, res) => {
       university,
       role: 'USER'
     });
-    
-    // Generate token
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-    
+    // Send verification email
+    await sendVerificationEmail(user);
     res.status(201).json({
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-      token
+      message: 'Registration successful. Please check your email to verify your account.'
     });
   } catch (error) {
     console.error('Register error:', error);
@@ -179,6 +230,9 @@ app.post('/api/auth/login', async (req, res) => {
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+    if (!user.is_verified) {
+      return res.status(403).json({ error: 'Please verify your email before logging in.' });
+    }
     
     // Generate token
     const token = jwt.sign(
@@ -200,6 +254,24 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Verify email
+app.get('/api/auth/verify', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Missing token' });
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const { id, email } = payload;
+    const user = await userRepository.findById(id);
+    if (!user || user.email !== email) return res.status(400).json({ error: 'Invalid verification link' });
+    if (user.is_verified) return res.json({ message: 'Account already verified.' });
+    const updated = await userRepository.update(id, { is_verified: true, email_verified_at: new Date() });
+    return res.json({ message: 'Email verified successfully.', user: { id: updated.id, email: updated.email, is_verified: updated.is_verified } });
+  } catch (error) {
+    console.error('Verify error:', error);
+    return res.status(400).json({ error: 'Verification failed' });
   }
 });
 

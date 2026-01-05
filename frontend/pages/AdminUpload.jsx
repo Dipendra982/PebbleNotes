@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateNoteDescription } from '../geminiService';
 
@@ -15,8 +15,12 @@ const AdminUpload = ({ user }) => {
   const [pdfFile, setPdfFile] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  useEffect(() => {
+    if (!user || user.role !== 'ADMIN') {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
   if (!user || user.role !== 'ADMIN') {
-    navigate('/dashboard');
     return null;
   }
 
