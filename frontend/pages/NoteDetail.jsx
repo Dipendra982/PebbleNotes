@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { generateStudyInsights } from '../geminiService';
+import { setStore, getStore } from '../store';
 
 const NoteDetail = ({ user }) => {
   const { id } = useParams();
@@ -23,10 +24,22 @@ const NoteDetail = ({ user }) => {
             subject: data.subject,
             description: data.description,
             price: Number(data.price || 0),
-            previewImageUrl: data.preview_image_url,
-            pdfUrl: data.pdf_url,
+            previewImageUrl: data.preview_image_url && data.preview_image_url.startsWith('/uploads') ? `http://localhost:4000${data.preview_image_url}` : data.preview_image_url,
+            pdfUrl: data.pdf_url && data.pdf_url.startsWith('/uploads') ? `http://localhost:4000${data.pdf_url}` : data.pdf_url,
             createdAt: data.created_at || new Date().toISOString()
           });
+          // After note loads, check purchase status (simple cached + server check)
+          const session = getStore.session();
+          const token = session?.token;
+          if (token) {
+            try {
+              const r = await fetch(`http://localhost:4000/api/purchases/check/${data.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const j = await r.json().catch(() => ({ purchased: false }));
+              setIsPurchased(Boolean(j?.purchased));
+            } catch {}
+          }
         } else {
           setNote(null);
         }
@@ -65,18 +78,59 @@ const NoteDetail = ({ user }) => {
         setIsProcessing(false);
         return;
       }
-      const newPurchase = {
-        id: Math.random().toString(36).substr(2, 9),
-        userId: user.id,
-        noteId: note.id,
+      const session = getStore.session();
+      const token = session?.token;
+      const payload = {
+        note_id: note.id,
         amount: note.price,
-        date: new Date().toISOString(),
-        status: 'COMPLETED'
+        payment_method: 'KHALTI',
+        transaction_id: Math.random().toString(36).slice(2),
+        payment_reference: 'demo',
+        payment_response: { success: true }
       };
-      // For now, skip purchase persistence (college project scope)
-      setIsPurchased(true);
-      setIsProcessing(false);
-      setShowPaymentModal(false);
+
+      const persist = async () => {
+        try {
+          if (token) {
+            const res = await fetch('http://localhost:4000/api/purchases', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify(payload)
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j?.error || 'Purchase failed');
+            // Cache to local storage (simple catchmemory for project)
+            setStore.purchase({
+              id: j.id,
+              userId: user.id,
+              noteId: note.id,
+              amount: note.price,
+              date: j.purchased_at || new Date().toISOString(),
+              status: j.status || 'COMPLETED'
+            });
+          } else {
+            // Fallback cache even if token missing
+            setStore.purchase({
+              id: Math.random().toString(36).slice(2),
+              userId: user.id,
+              noteId: note.id,
+              amount: note.price,
+              date: new Date().toISOString(),
+              status: 'COMPLETED'
+            });
+          }
+          setIsPurchased(true);
+        } catch (e) {
+          alert(e.message);
+        } finally {
+          setIsProcessing(false);
+          setShowPaymentModal(false);
+        }
+      };
+      persist();
     }, 1500);
   };
 
@@ -135,16 +189,20 @@ const NoteDetail = ({ user }) => {
             </div>
 
             <div className="pt-8 border-t border-slate-100">
-              {isPurchased ? (
+                             {isPurchased ? (
                  <div className="flex flex-col space-y-4">
                    <div className="flex items-center space-x-2 text-emerald-600">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
                       <span className="text-xs font-bold uppercase tracking-wider">Asset Unlocked</span>
                    </div>
-                   <button className="bg-slate-900 text-white px-8 py-3.5 rounded-lg font-bold text-xs hover:bg-slate-800 transition flex items-center justify-center space-x-2 shadow-xl shadow-slate-200">
-                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                     <span>Download Verified PDF</span>
-                   </button>
+                                     {note.pdfUrl ? (
+                                       <a href={note.pdfUrl} target="_blank" rel="noopener" download className="bg-slate-900 text-white px-8 py-3.5 rounded-lg font-bold text-xs hover:bg-slate-800 transition flex items-center justify-center space-x-2 shadow-xl shadow-slate-200">
+                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                         <span>Download Verified PDF</span>
+                                       </a>
+                                     ) : (
+                                       <div className="text-xs text-slate-500">PDF not provided for this note.</div>
+                                     )}
                  </div>
               ) : (
                 <div className="flex items-center justify-between">
