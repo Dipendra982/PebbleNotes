@@ -15,20 +15,54 @@ const Dashboard = ({ user }) => {
       return;
     }
 
-    const allNotes = getStore.notes();
-    const allPurchases = getStore.purchases();
+    const session = getStore.session();
+    const token = session?.token;
+    const makeAbsolute = (url) => {
+      if (!url) return url;
+      if (typeof url === 'string' && url.startsWith('/uploads')) return `http://localhost:4000${url}`;
+      return url;
+    };
 
     if (user.role === 'ADMIN') {
+      // Keep simple: local cache for admin uploads (college project scope)
+      const allNotes = getStore.notes();
       setMyNotes(allNotes.filter(n => n.adminId === user.id));
     } else {
-      const userPurchases = allPurchases.filter(p => p.userId === user.id);
-      const purchasedNotes = userPurchases
-        .map(p => {
-          const note = allNotes.find(n => n.id === p.noteId);
-          return note ? { ...note, purchaseDate: p.date } : null;
-        })
-        .filter(Boolean);
-      setPurchases(purchasedNotes);
+      // Prefer backend purchases; fallback to local cache if API fails
+      const fetchPurchases = async () => {
+        try {
+          if (!token) throw new Error('No token');
+          const res = await fetch('http://localhost:4000/api/purchases', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || 'Failed');
+          const notes = (Array.isArray(data) ? data : []).map(p => ({
+            id: p.note_id,
+            title: p.title,
+            subject: p.subject || 'General',
+            description: p.description || '',
+            price: Number(p.amount || 0),
+            previewImageUrl: makeAbsolute(p.preview_image_url),
+            pdfUrl: makeAbsolute(p.pdf_url),
+            purchaseDate: p.purchased_at
+          }));
+          setPurchases(notes);
+        } catch {
+          // Fallback to local cached purchases
+          const allNotes = getStore.notes();
+          const allPurchases = getStore.purchases();
+          const userPurchases = allPurchases.filter(p => p.userId === user.id);
+          const purchasedNotes = userPurchases
+            .map(p => {
+              const note = allNotes.find(n => n.id === p.noteId);
+              return note ? { ...note, purchaseDate: p.date } : null;
+            })
+            .filter(Boolean);
+          setPurchases(purchasedNotes);
+        }
+      };
+      fetchPurchases();
     }
   }, [user, navigate]);
 
