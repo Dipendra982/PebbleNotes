@@ -81,11 +81,11 @@ const About = () => {
           <div className="mb-24 bg-slate-50 border border-slate-200 rounded-xl p-10">
             <h2 className="text-3xl font-bold text-slate-900 mb-6 tracking-tight">Demo Content</h2>
             <p className="text-lg text-slate-600 mb-7 leading-relaxed">
-              This platform currently features sample notes for demonstration purposes. All displayed content, including notes, descriptions, and pricing, are placeholder data to showcase the platform's functionality.
+              This platform connects to a live PostgreSQL database. All notes and metadata you see are stored in the database and managed via the admin tools.
             </p>
             <div className="bg-white border border-slate-200 rounded-lg p-6">
               <p className="text-base text-slate-500">
-                <span className="font-semibold text-slate-700">Note:</span> Sample notes include titles, subjects, descriptions, and preview content that demonstrate how the marketplace operates. In production, these would be replaced with actual verified study materials from real contributors.
+                <span className="font-semibold text-slate-700">Note:</span> Uploaded previews are saved locally on the server and their paths are stored in the database for easy verification in pgAdmin.
               </p>
             </div>
           </div>

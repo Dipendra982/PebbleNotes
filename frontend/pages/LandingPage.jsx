@@ -1,20 +1,39 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getStore } from '../store';
 import NoteCard from '../components/NoteCard';
 
 const LandingPage = () => {
   const navigate = useNavigate();
-  const featuredNotes = getStore.notes().slice(0, 4);
+  const [featuredNotes, setFeaturedNotes] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch('http://localhost:4000/api/notes?limit=4&is_featured=true');
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        setFeaturedNotes(
+          list.map(n => ({
+            id: n.id,
+            title: n.title,
+            subject: n.subject,
+            description: n.description,
+            price: Number(n.price || 0),
+            previewImageUrl: n.preview_image_url,
+            pdfUrl: n.pdf_url
+          }))
+        );
+      } catch {
+        setFeaturedNotes([]);
+      }
+    };
+    load();
+  }, []);
 
   const handleBuyClick = () => {
-    const session = getStore.session();
-    if (session) {
+    // Keep simple: send to marketplace for now
       navigate('/marketplace');
-    } else {
-      navigate('/signup');
-    }
   };
 
   return (

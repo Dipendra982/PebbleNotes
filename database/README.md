@@ -161,7 +161,10 @@ psql -U postgres -d pebblenotes < backup.sql
 To completely reset the database:
 
 ```bash
-# Drop and recreate
+# Clear all site data (notes, purchases, etc.) but keep users/categories
+psql -U postgres -d pebblenotes -f clear-data.sql
+
+# Or drop and recreate everything
 psql -U postgres -c "DROP DATABASE IF EXISTS pebblenotes"
 psql -U postgres -c "CREATE DATABASE pebblenotes"
 psql -U postgres -d pebblenotes -f schema.sql

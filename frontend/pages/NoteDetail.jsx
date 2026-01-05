@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getStore, setStore } from '../store';
 import { generateStudyInsights } from '../geminiService';
 
 const NoteDetail = ({ user }) => {
@@ -14,24 +12,43 @@ const NoteDetail = ({ user }) => {
   const [insights, setInsights] = useState('Analyzing content with Gemini...');
 
   useEffect(() => {
-    const foundNote = getStore.notes().find(n => n.id === id);
-    if (!foundNote) {
-      navigate('/marketplace');
-      return;
-    }
-    setNote(foundNote);
-
-    if (user) {
-      const purchase = getStore.purchases().find(p => p.userId === user.id && p.noteId === id);
-      if (purchase) setIsPurchased(true);
-    }
-
-    const fetchInsights = async () => {
-      const text = await generateStudyInsights(foundNote.title, foundNote.description);
-      setInsights(text);
+    const load = async () => {
+      try {
+        const res = await fetch(`http://localhost:4000/api/notes/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setNote({
+            id: data.id,
+            title: data.title,
+            subject: data.subject,
+            description: data.description,
+            price: Number(data.price || 0),
+            previewImageUrl: data.preview_image_url,
+            pdfUrl: data.pdf_url,
+            createdAt: data.created_at || new Date().toISOString()
+          });
+        } else {
+          setNote(null);
+        }
+      } catch {
+        setNote(null);
+      }
     };
-    fetchInsights();
-  }, [id, user, navigate]);
+    load();
+  }, [id]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!note) return;
+      try {
+        const text = await generateStudyInsights(note.title, note.description || '');
+        setInsights(text);
+      } catch {
+        setInsights('Great for exam prep and concept clarity.');
+      }
+    };
+    run();
+  }, [note]);
 
   const handlePurchase = () => {
     if (!user) {
@@ -56,7 +73,7 @@ const NoteDetail = ({ user }) => {
         date: new Date().toISOString(),
         status: 'COMPLETED'
       };
-      setStore.purchase(newPurchase);
+      // For now, skip purchase persistence (college project scope)
       setIsPurchased(true);
       setIsProcessing(false);
       setShowPaymentModal(false);
