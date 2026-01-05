@@ -1,6 +1,3 @@
-
-import { User, Note, Purchase } from './types';
-
 const USERS_KEY = 'pebble_users';
 const NOTES_KEY = 'pebble_notes';
 const PURCHASES_KEY = 'pebble_purchases';

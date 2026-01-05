@@ -25,7 +25,7 @@ const LandingPage = () => {
         <div className="max-w-5xl mx-auto text-center relative z-10">
           <div className="inline-flex items-center space-x-2 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full mb-8">
              <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
-             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">v2.0 is now live</span>
+             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Study with PebbleNotes</span>
           </div>
           <h1 className="text-6xl md:text-7xl font-extrabold text-slate-900 mb-8 tracking-tighter leading-[1.05]">
             Verified study material <br/><span className="text-slate-400">for the modern student.</span>

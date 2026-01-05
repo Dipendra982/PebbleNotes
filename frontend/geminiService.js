@@ -1,9 +1,8 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-export const generateNoteDescription = async (title: string, subject: string) => {
+export const generateNoteDescription = async (title, subject) => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -16,7 +15,7 @@ export const generateNoteDescription = async (title: string, subject: string) =>
   }
 };
 
-export const generateStudyInsights = async (title: string, description: string) => {
+export const generateStudyInsights = async (title, description) => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
