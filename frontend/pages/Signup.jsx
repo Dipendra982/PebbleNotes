@@ -32,57 +32,59 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link to="/" className="text-3xl font-black text-blue-600 text-center block mb-8">PebbleNote</Link>
-        <div className="bg-white py-10 px-6 shadow-xl sm:rounded-3xl sm:px-12 border border-gray-100">
-          <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-8">Create Account</h2>
-          
-          {/* <div className="flex p-1 bg-gray-100 rounded-xl mb-8">
-            <button 
-              onClick={() => setRole('USER')}
-              className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${role === 'USER' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >Student</button>
-          </div> */}
+    <div className="min-h-screen bg-[#fcfcfc] py-24 px-6 sm:px-8">
+      <div className="max-w-md mx-auto">
+        <div className="flex items-center justify-center mb-8">
+          <Link to="/" className="flex items-center space-x-2 group">
+            <div className="bg-slate-900 text-white p-1 rounded-md group-hover:bg-blue-600 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+            </div>
+            <span className="text-sm font-bold tracking-tight text-slate-900">PebbleNote</span>
+          </Link>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
+          <h1 className="text-2xl font-extrabold text-slate-900 mb-1">Create your account</h1>
+          <p className="text-sm text-slate-500 mb-8">Join the PebbleNote community</p>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Full Name</label>
-              <input 
+            <div>
+              <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-widest mb-2">Full Name</label>
+              <input
                 required
-                type="text" 
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                type="text"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
                 placeholder="John Doe"
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
-              <input 
+              <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-widest mb-2">Email Address</label>
+              <input
                 required
-                type="email" 
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                type="email"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
                 placeholder="you@college.edu"
                 value={formData.email}
                 onChange={e => setFormData({...formData, email: e.target.value})}
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Password</label>
-              <input 
+              <label className="block text-[12px] font-bold text-slate-500 uppercase tracking-widest mb-2">Password</label>
+              <input
                 required
-                type="password" 
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                type="password"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition bg-white"
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
               />
             </div>
             <div>
-              <button 
+              <button
                 type="submit"
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition"
+                className="w-full flex justify-center py-4 px-4 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 transition shadow-lg shadow-slate-200"
               >
                 Get Started
               </button>
@@ -91,8 +93,8 @@ const Signup = () => {
 
           <div className="mt-8 text-center">
             {status && <p className="text-sm font-medium text-blue-600 mb-4">{status}</p>}
-            <p className="text-sm text-gray-600">
-              Already have an account? <Link to="/signin" className="font-bold text-blue-600 hover:text-blue-500">Sign in here</Link>
+            <p className="text-sm text-slate-600">
+              Already have an account? <Link to="/signin" className="font-bold text-blue-600 hover:text-blue-700">Sign in here</Link>
             </p>
           </div>
         </div>
