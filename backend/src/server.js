@@ -21,7 +21,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Middleware
-const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173')
+// Allow common local dev ports by default; override via env FRONTEND_URLS/FRONTEND_URL
+const allowedOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:5173')
   .split(',')
   .map(o => o.trim())
   .filter(Boolean);
