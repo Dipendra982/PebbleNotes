@@ -249,6 +249,25 @@ CREATE INDEX idx_activity_logs_action ON activity_logs(action);
 CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at DESC);
 
 -- ============================================
+-- EMAIL VERIFICATION TOKENS TABLE
+-- ============================================
+
+CREATE TABLE email_verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id)
+);
+
+CREATE INDEX idx_email_verification_token ON email_verification_tokens(token_hash);
+CREATE INDEX idx_email_verification_user ON email_verification_tokens(user_id);
+CREATE INDEX idx_email_verification_expires ON email_verification_tokens(expires_at);
+
+-- ============================================
 -- PASSWORD RESET TOKENS TABLE
 -- ============================================
 
@@ -453,7 +472,7 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO PUBLIC;
 DO $$
 BEGIN
     RAISE NOTICE '✅ PebbleNotes database schema created successfully!';
-    RAISE NOTICE '📊 Tables created: users, sessions, categories, notes, purchases, reviews, favorites, notifications, activity_logs, password_reset_tokens';
+    RAISE NOTICE '📊 Tables created: users, sessions, categories, notes, purchases, reviews, favorites, notifications, activity_logs, email_verification_tokens, password_reset_tokens';
     RAISE NOTICE '👤 Default admin: admin@pebblenotes.com';
     RAISE NOTICE '🔐 Default password: admin123 (CHANGE THIS IN PRODUCTION!)';
 END $$;
