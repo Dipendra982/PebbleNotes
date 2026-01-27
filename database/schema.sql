@@ -259,8 +259,7 @@ CREATE TABLE email_verification_tokens (
     token_hash VARCHAR(255) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
     verified_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_email_verification_token ON email_verification_tokens(token_hash);

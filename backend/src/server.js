@@ -135,8 +135,7 @@ app.get('/api/health', async (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    database: dbStatus,
-    email: await emailService.verifyConfiguration()
+    database: dbStatus
   });
 });
 
@@ -154,7 +153,7 @@ const sendVerificationEmailWithToken = async (user) => {
     const { token, expiresAt } = await tokenService.createVerificationToken(user.id, 24);
     
     // Build verification URL
-    const verifyUrl = `${process.env.BACKEND_URL || 'http://localhost:4000'}/api/auth/verify?token=${encodeURIComponent(token)}`;
+    const verifyUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/verify?token=${encodeURIComponent(token)}`;
     
     // Send email using production email service
     await emailService.sendVerificationEmail(user, verifyUrl);
@@ -178,7 +177,8 @@ const sendPasswordResetEmailWithToken = async (user) => {
     // Persist in password_reset_tokens table
     await query(
       `INSERT INTO password_reset_tokens (user_id, token, expires_at)
-       VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+       VALUES ($1, $2, NOW() + INTERVAL '1 hour')
+       ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = NOW() + INTERVAL '1 hour'`,
       [user.id, token]
     );
     

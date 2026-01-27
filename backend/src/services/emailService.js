@@ -16,62 +16,49 @@ dotenv.config();
 class EmailService {
   constructor() {
     this.transporter = null;
-    this.provider = (process.env.EMAIL_PROVIDER || 'gmail').toLowerCase();
-    this.initialized = false;
+    this.initTransporter();
   }
 
-  buildTransporter(provider) {
-    if (provider === 'gmail') {
-      return nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-      });
-    }
-    if (provider === 'outlook') {
-      return nodemailer.createTransport({
-        host: 'smtp-mail.outlook.com',
-        port: 587,
-        secure: false,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-      });
-    }
-    // Custom SMTP provider
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-    });
-  }
+  initTransporter() {
+    // Choose email provider based on configuration
+    const provider = process.env.EMAIL_PROVIDER || 'gmail';
 
-  async ensureTransporter() {
-    if (this.transporter && this.initialized) return this.transporter;
-
-    // Try primary provider
     try {
-      this.transporter = this.buildTransporter(this.provider);
-      await this.transporter.verify();
-      this.initialized = true;
-      console.log(`✅ Email service verified with ${this.provider.toUpperCase()} SMTP`);
-      return this.transporter;
-    } catch (error) {
-      console.error(`❌ Primary SMTP (${this.provider}) verify failed:`, error.message);
-      // Optional fallback provider from env
-      const fallback = (process.env.EMAIL_PROVIDER_ALT || '').toLowerCase();
-      if (fallback) {
-        try {
-          const altTransporter = this.buildTransporter(fallback);
-          await altTransporter.verify();
-          this.transporter = altTransporter;
-          this.initialized = true;
-          this.provider = fallback;
-          console.log(`✅ Fallback email service verified with ${fallback.toUpperCase()} SMTP`);
-          return this.transporter;
-        } catch (altErr) {
-          console.error(`❌ Fallback SMTP (${fallback}) verify failed:`, altErr.message);
-        }
+      if (provider === 'gmail') {
+        this.transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS // Use Gmail App Password, not regular password
+          }
+        });
+      } else if (provider === 'outlook') {
+        this.transporter = nodemailer.createTransport({
+          host: 'smtp.outlook.com',
+          port: 587,
+          secure: false,
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+          }
+        });
+      } else {
+        // Custom SMTP provider
+        this.transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS
+          }
+        });
       }
-      throw new Error(`SMTP verification failed: ${error.message}`);
+
+      console.log(`✅ Email service initialized with ${provider.toUpperCase()} SMTP`);
+    } catch (error) {
+      console.error('❌ Failed to initialize email service:', error.message);
+      throw new Error(`Email service initialization failed: ${error.message}`);
     }
   }
 
@@ -80,7 +67,8 @@ class EmailService {
    */
   async verifyConfiguration() {
     try {
-      await this.ensureTransporter();
+      await this.transporter.verify();
+      console.log('✅ Email configuration verified successfully');
       return true;
     } catch (error) {
       console.error('❌ Email configuration failed:', error.message);
@@ -92,11 +80,14 @@ class EmailService {
    * Send email with HTML and plain text
    */
   async sendEmail({ to, subject, text, html, from = null }) {
+    if (!this.transporter) {
+      throw new Error('Email service not initialized');
+    }
+
     const senderEmail = from || process.env.SMTP_FROM || process.env.SMTP_USER;
 
     try {
-      const transporter = await this.ensureTransporter();
-      const info = await transporter.sendMail({
+      const info = await this.transporter.sendMail({
         from: senderEmail,
         to,
         subject,
@@ -112,8 +103,7 @@ class EmailService {
       };
     } catch (error) {
       console.error(`❌ Failed to send email to ${to}:`, error.message);
-      const code = (error && error.code) ? error.code : 'EMAIL_SEND_FAILED';
-      throw new Error(`Email delivery failed (${code}): ${error.message}`);
+      throw new Error(`Email delivery failed: ${error.message}`);
     }
   }
 
