@@ -10,7 +10,11 @@ import { checkConnection, query } from './config/database.js';
 import { noteRepository, userRepository, purchaseRepository, categoryRepository, favoritesRepository, reviewRepository } from './repositories/index.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
+
+// Import production email & token services
+import { emailService } from './services/emailService.js';
+import { tokenService } from './services/tokenService.js';
+import { rateLimitService } from './services/rateLimitService.js';
 
 // Load environment variables
 dotenv.config();
@@ -34,8 +38,8 @@ app.use(cors({
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','x-admin-pass']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-pass']
 }));
 // Allow larger JSON bodies (for base64 avatars) and forms
 app.use(express.json({ limit: '15mb' }));
@@ -83,11 +87,11 @@ const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 102
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-  
+
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
   }
-  
+
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET);
     req.user = user;
@@ -131,75 +135,63 @@ app.get('/api/health', async (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    database: dbStatus
+    database: dbStatus,
+    email: await emailService.verifyConfiguration()
   });
 });
 
 // ============================================
-// EMAIL / VERIFICATION UTILITIES
+// EMAIL & TOKEN VERIFICATION UTILITIES
 // ============================================
 
-const createTransporter = async () => {
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-    });
-  }
-  const testAccount = await nodemailer.createTestAccount();
-  return nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false,
-    auth: { user: testAccount.user, pass: testAccount.pass }
-  });
-};
-
-const sendVerificationEmail = async (user) => {
-  const transporter = await createTransporter();
-  const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1m' });
-  const verifyUrl = `${process.env.BACKEND_URL || 'http://localhost:4000'}/api/auth/verify?token=${encodeURIComponent(token)}`;
-
-  const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'PebbleNotes <no-reply@pebblenotes.local>',
-    to: user.email,
-    subject: 'Verify your PebbleNotes account',
-    text: `Hi ${user.name || ''},\n\nPlease verify your account by clicking the link below:\n${verifyUrl}\n\nThis link expires in 1 minute. If it expires, use the Resend verification button from Sign In.`,
-    html: `<div style="font-family:system-ui, -apple-system, Segoe UI, Roboto;">
-             <h2>Verify your PebbleNotes account</h2>
-             <p>Hi ${user.name || ''}, please verify your account by clicking the button below. This link is valid for <strong>1 minute</strong>.</p>
-             <p><a href="${verifyUrl}" style="display:inline-block;padding:10px 16px;background:#1f2937;color:white;border-radius:8px;text-decoration:none">Verify Account</a></p>
-             <p>If the button doesn't work, copy this link:<br/><code>${verifyUrl}</code></p>
-             <p style="margin-top:12px;color:#6b7280;font-size:14px">Expired? Use the <em>Resend verification</em> on the Sign In page.</p>
-           </div>`
-  });
-
-  if (nodemailer.getTestMessageUrl) {
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) console.log('📧 Email preview URL:', previewUrl);
+/**
+ * Send verification email with secure token
+ * Token expires in 24 hours and is stored securely in database
+ */
+const sendVerificationEmailWithToken = async (user) => {
+  try {
+    // Generate secure token and store it
+    const { token, expiresAt } = await tokenService.createVerificationToken(user.id, 24);
+    
+    // Build verification URL
+    const verifyUrl = `${process.env.BACKEND_URL || 'http://localhost:4000'}/api/auth/verify?token=${encodeURIComponent(token)}`;
+    
+    // Send email using production email service
+    await emailService.sendVerificationEmail(user, verifyUrl);
+    
+    console.log(`✅ Verification email sent to ${user.email} | Token expires: ${expiresAt}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send verification email:', error.message);
+    throw error;
   }
 };
 
-const sendPasswordResetEmail = async (user, token) => {
-  const transporter = await createTransporter();
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/reset?token=${encodeURIComponent(token)}`;
-  const info = await transporter.sendMail({
-    from: process.env.SMTP_FROM || 'PebbleNotes <no-reply@pebblenotes.local>',
-    to: user.email,
-    subject: 'Reset your PebbleNotes password',
-    text: `Hi ${user.name || ''},\n\nReset your password using the link below:\n${resetUrl}\n\nIf you did not request this, please ignore.`,
-    html: `<div style="font-family:system-ui, -apple-system, Segoe UI, Roboto;">
-             <h2>Reset your password</h2>
-             <p>Hi ${user.name || ''}, click the button below to reset your password.</p>
-             <p><a href="${resetUrl}" style="display:inline-block;padding:10px 16px;background:#1f2937;color:white;border-radius:8px;text-decoration:none">Reset Password</a></p>
-             <p>If it doesn't work, copy this link:<br/><code>${resetUrl}</code></p>
-           </div>`
-  });
-  if (nodemailer.getTestMessageUrl) {
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    if (previewUrl) console.log('📧 Reset email preview URL:', previewUrl);
+/**
+ * Send password reset email
+ */
+const sendPasswordResetEmailWithToken = async (user) => {
+  try {
+    // Create reset token (1 hour expiry)
+    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    
+    // Persist in password_reset_tokens table
+    await query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+      [user.id, token]
+    );
+    
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/reset?token=${encodeURIComponent(token)}`;
+    
+    // Send email using production email service
+    await emailService.sendPasswordResetEmail(user, resetUrl);
+    
+    console.log(`✅ Password reset email sent to ${user.email}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to send password reset email:', error.message);
+    throw error;
   }
 };
 
@@ -211,17 +203,22 @@ const sendPasswordResetEmail = async (user, token) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, university } = req.body;
-    
+
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+
     // Check if user exists
     const existingUser = await userRepository.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
     }
-    
+
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
-    
-    // Create user
+
+    // Create user (not verified yet)
     const user = await userRepository.create({
       name,
       email,
@@ -229,22 +226,32 @@ app.post('/api/auth/register', async (req, res) => {
       university,
       role: 'USER'
     });
-    // Send verification email (do not fail registration if email sending fails)
+
+    // Send verification email
     try {
-      await sendVerificationEmail(user);
-      res.status(201).json({
-        message: 'Registration successful. Please check your email to verify your account.'
+      await sendVerificationEmailWithToken(user);
+      return res.status(201).json({
+        message: 'Registration successful! Check your email to verify your account.',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        }
       });
     } catch (mailError) {
-      console.error('Email send failed (verification):', mailError);
-      // Still return success so user can use resend verification later
-      res.status(201).json({
-        message: 'Registration successful. Verification email could not be sent right now. Please try "Resend verification" from Sign In.'
+      console.error('❌ Email send failed during registration:', mailError.message);
+      return res.status(201).json({
+        message: 'Account created but verification email could not be sent. Use "Resend Verification" on Sign In.',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        }
       });
     }
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error('❌ Register error:', error);
+    res.status(500).json({ error: 'Registration failed. Please try again.' });
   }
 });
 
@@ -252,42 +259,66 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
     // Find user
     const user = await userRepository.findByEmail(email);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-    
+
     // Check password
     const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Check email verification
     if (!user.is_verified) {
-      return res.status(403).json({ error: 'Please verify your email before logging in.' });
+      const tokenStatus = await tokenService.getTokenStatus(user.id);
+      
+      if (!tokenStatus.hasValid) {
+        return res.status(403).json({
+          error: 'Please verify your email to continue',
+          code: 'EMAIL_NOT_VERIFIED',
+          email: user.email,
+          message: 'Your email is not verified. Check your inbox for the verification link, or use "Resend Verification" below.'
+        });
+      }
+
+      return res.status(403).json({
+        error: 'Please verify your email to continue',
+        code: 'EMAIL_NOT_VERIFIED',
+        email: user.email,
+        message: 'Your email is not verified. Check your inbox for the verification link.',
+        expiresIn: tokenStatus.secondsLeft
+      });
     }
-    
+
     // Generate token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, name: user.name },
       process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
-    
+
     res.json({
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar
+        avatar: user.avatar,
+        is_verified: user.is_verified
       },
       token
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    console.error('❌ Login error:', error);
+    res.status(500).json({ error: 'Login failed. Please try again.' });
   }
 });
 
@@ -295,23 +326,32 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body || {};
-    if (!email) return res.status(400).json({ error: 'Email is required' });
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
     const user = await userRepository.findByEmail(email);
-    // For project simplicity, respond success even if user not found
-    if (!user) return res.json({ message: 'If the account exists, an email was sent.' });
-    // Create reset token, expires in 1 hour
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    // Persist in password_reset_tokens
-    await query(
-      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
-       VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
-      [user.id, token]
-    );
-    await sendPasswordResetEmail(user, token);
-    return res.json({ message: 'Password reset link sent to your email.' });
+    // For security, always respond with success message even if email doesn't exist
+    if (!user) {
+      return res.json({ 
+        message: 'If an account exists with that email, a password reset link has been sent.' 
+      });
+    }
+
+    try {
+      await sendPasswordResetEmailWithToken(user);
+      return res.json({ 
+        message: 'Password reset link sent to your email. Check your inbox.' 
+      });
+    } catch (mailError) {
+      console.error('❌ Email send failed during password reset:', mailError.message);
+      return res.status(500).json({ 
+        error: 'Could not send reset email. Please try again later.' 
+      });
+    }
   } catch (error) {
-    console.error('Forgot password error:', error);
-    return res.status(500).json({ error: 'Failed to initiate reset' });
+    console.error('❌ Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process reset request' });
   }
 });
 
@@ -319,46 +359,100 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { token, new_password } = req.body || {};
-    if (!token || !new_password) return res.status(400).json({ error: 'Token and new password required' });
+    if (!token || !new_password) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    // Verify JWT token
     let payload;
     try {
       payload = jwt.verify(token, process.env.JWT_SECRET);
     } catch (e) {
-      return res.status(400).json({ error: 'Invalid or expired token' });
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
+
     const { id, email } = payload;
     const user = await userRepository.findById(id);
-    if (!user || user.email !== email) return res.status(400).json({ error: 'Invalid token' });
+    if (!user || user.email !== email) {
+      return res.status(400).json({ error: 'Invalid token' });
+    }
+
     // Check token exists and not expired
     const t = await query(
       `SELECT id FROM password_reset_tokens WHERE user_id = $1 AND token = $2 AND expires_at > NOW()`,
       [id, token]
     );
-    if (t.rows.length === 0) return res.status(400).json({ error: 'Invalid or expired token' });
+    if (t.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Update password
     const password_hash = await bcrypt.hash(new_password, 10);
     await userRepository.update(id, { password_hash });
-    // Cleanup tokens for user
+
+    // Clean up used tokens
     await query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [id]);
-    return res.json({ message: 'Password reset successful. You can now sign in.' });
+
+    console.log(`✅ Password reset successful for user ${email}`);
+    return res.json({ message: 'Password reset successful. You can now sign in with your new password.' });
   } catch (error) {
-    console.error('Reset password error:', error);
-    return res.status(500).json({ error: 'Failed to reset password' });
+    console.error('❌ Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
 
-// Resend verification email
+// Resend verification email with rate limiting
 app.post('/api/auth/resend-verification', async (req, res) => {
   try {
     const { email } = req.body || {};
-    if (!email) return res.status(400).json({ error: 'Email is required' });
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
     const user = await userRepository.findByEmail(email);
-    if (!user) return res.json({ message: 'If the account exists, verification was sent.' });
-    if (user.is_verified) return res.json({ message: 'Account already verified.' });
-    await sendVerificationEmail(user);
-    return res.json({ message: 'Verification email sent.' });
+    if (!user) {
+      return res.json({ 
+        message: 'If an account exists with that email, a verification link has been sent.' 
+      });
+    }
+
+    if (user.is_verified) {
+      return res.json({ message: 'Your email is already verified. You can sign in now.' });
+    }
+
+    // Check rate limit: max 3 resend attempts per hour
+    const rateLimit = await rateLimitService.checkLimit(user.id, 'resend-verification', 3, 60);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({
+        error: rateLimit.message,
+        code: 'RATE_LIMIT_EXCEEDED',
+        resetAt: rateLimit.resetAt,
+        minutesUntilReset: rateLimit.minutesUntilReset
+      });
+    }
+
+    // Record this attempt for rate limiting
+    await rateLimitService.recordAttempt(user.id, 'resend-verification');
+
+    try {
+      await sendVerificationEmailWithToken(user);
+      const tokenStatus = await tokenService.getTokenStatus(user.id);
+
+      return res.json({
+        message: 'Verification email sent. Check your inbox.',
+        expiresIn: tokenStatus.secondsLeft,
+        remaining: rateLimit.remaining
+      });
+    } catch (mailError) {
+      console.error('❌ Email send failed during resend:', mailError.message);
+      return res.status(500).json({
+        error: 'Could not send verification email. Please try again later.',
+        code: 'EMAIL_SEND_FAILED'
+      });
+    }
   } catch (error) {
-    console.error('Resend verification error:', error);
-    return res.status(500).json({ error: 'Failed to resend verification' });
+    console.error('❌ Resend verification error:', error);
+    res.status(500).json({ error: 'Failed to resend verification email' });
   }
 });
 
@@ -383,21 +477,73 @@ app.post('/api/auth/change-password', async (req, res) => {
   }
 });
 
-// Verify email
+// Verify email endpoint
 app.get('/api/auth/verify', async (req, res) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).json({ error: 'Missing token' });
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const { id, email } = payload;
-    const user = await userRepository.findById(id);
-    if (!user || user.email !== email) return res.status(400).json({ error: 'Invalid verification link' });
-    if (user.is_verified) return res.json({ message: 'Account already verified.' });
-    const updated = await userRepository.update(id, { is_verified: true, email_verified_at: new Date() });
-    return res.json({ message: 'Email verified successfully.', user: { id: updated.id, email: updated.email, is_verified: updated.is_verified } });
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+
+    // Verify token using token service (checks expiration and validity)
+    const verification = await tokenService.verifyToken(token);
+
+    if (!verification.valid) {
+      return res.status(400).json({
+        error: verification.error || 'Verification failed',
+        code: 'INVALID_OR_EXPIRED_TOKEN'
+      });
+    }
+
+    const { user_id } = verification.data;
+    const user = await userRepository.findById(user_id);
+
+    if (!user) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    if (user.is_verified) {
+      return res.json({ 
+        message: 'Your email is already verified.',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          is_verified: true
+        }
+      });
+    }
+
+    // Mark email as verified
+    const updated = await userRepository.update(user_id, {
+      is_verified: true,
+      email_verified_at: new Date()
+    });
+
+    // Mark token as used
+    await tokenService.markTokenAsVerified(user_id);
+
+    // Send welcome email (optional)
+    try {
+      await emailService.sendWelcomeEmail(user);
+    } catch (e) {
+      console.log('Welcome email send skipped:', e.message);
+    }
+
+    console.log(`✅ Email verified for user ${user.email}`);
+
+    return res.json({
+      message: 'Email verified successfully! You can now sign in.',
+      user: {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        is_verified: updated.is_verified
+      }
+    });
   } catch (error) {
-    console.error('Verify error:', error);
-    return res.status(400).json({ error: 'Verification failed' });
+    console.error('❌ Verify email error:', error);
+    res.status(400).json({ error: 'Email verification failed. Please try again.' });
   }
 });
 
@@ -648,13 +794,13 @@ app.get('/api/purchases', authenticateToken, async (req, res) => {
 app.post('/api/purchases', authenticateToken, async (req, res) => {
   try {
     const { note_id, amount, payment_method, transaction_id, payment_reference, payment_response } = req.body;
-    
+
     // Check if already purchased
     const hasPurchased = await purchaseRepository.hasPurchased(req.user.id, note_id);
     if (hasPurchased) {
       return res.status(400).json({ error: 'Already purchased this note' });
     }
-    
+
     const purchase = await purchaseRepository.create({
       user_id: req.user.id,
       note_id,
@@ -664,7 +810,7 @@ app.post('/api/purchases', authenticateToken, async (req, res) => {
       payment_reference,
       payment_response
     });
-    
+
     res.status(201).json(purchase);
   } catch (error) {
     console.error('Purchase error:', error);
@@ -715,10 +861,10 @@ app.get('/api/notes/:id/reviews', async (req, res) => {
 app.post('/api/notes/:id/reviews', authenticateToken, async (req, res) => {
   try {
     const { rating, comment } = req.body;
-    
+
     // Check if user purchased
     const hasPurchased = await purchaseRepository.hasPurchased(req.user.id, req.params.id);
-    
+
     const review = await reviewRepository.create({
       user_id: req.user.id,
       note_id: req.params.id,
@@ -726,7 +872,7 @@ app.post('/api/notes/:id/reviews', authenticateToken, async (req, res) => {
       comment,
       is_verified_purchase: hasPurchased
     });
-    
+
     res.status(201).json(review);
   } catch (error) {
     console.error('Review error:', error);
@@ -784,7 +930,7 @@ app.get('/api/favorites/check/:noteId', authenticateToken, async (req, res) => {
 
 app.listen(PORT, async () => {
   console.log(`🚀 Backend running on http://localhost:${PORT}`);
-  
+
   // Test database connection
   const dbStatus = await checkConnection();
   if (dbStatus.connected) {
