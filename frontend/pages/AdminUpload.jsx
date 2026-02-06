@@ -34,31 +34,7 @@ const AdminUpload = ({ user }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate files
-    if (!pdfFile) {
-      alert('Please select a PDF file to upload');
-      return;
-    }
-    
     try {
-      // Get auth token from localStorage
-      const sessionData = localStorage.getItem('pebble_session');
-      if (!sessionData) {
-        alert('You are not logged in. Please log in again.');
-        navigate('/login');
-        return;
-      }
-      
-      const session = JSON.parse(sessionData);
-      const token = session.token;
-      
-      if (!token) {
-        alert('Authentication token missing. Please log in again.');
-        navigate('/login');
-        return;
-      }
-
       const fd = new FormData();
       fd.append('title', formData.title);
       fd.append('subject', formData.subject);
@@ -67,38 +43,22 @@ const AdminUpload = ({ user }) => {
       if (previewFile) fd.append('preview', previewFile);
       if (pdfFile) fd.append('pdf', pdfFile);
 
-      const API_BASE = `${window.location.protocol}//${window.location.hostname}:4000`;
-      const res = await fetch(`${API_BASE}/api/notes`, {
+      const res = await fetch('http://localhost:4000/api/notes', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'x-admin-pass': 'root'
         },
         body: fd
       });
-      
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Upload failed');
       }
-      
-      const result = await res.json();
-      console.log('Note uploaded:', result);
-      alert('Note published to marketplace successfully! 🎉');
-      
-      // Reset form
-      setFormData({
-        title: '',
-        subject: 'Computer Science',
-        price: '',
-        description: '',
-      });
-      setPreviewFile(null);
-      setPdfFile(null);
-      
+      await res.json();
+      alert('Note uploaded successfully!');
       navigate('/marketplace');
     } catch (err) {
-      console.error('Upload error:', err);
-      alert('Upload failed: ' + err.message);
+      alert(err.message);
     }
   };
 

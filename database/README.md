@@ -10,27 +10,7 @@ This folder contains everything needed to set up the PostgreSQL database for Peb
 |------|-------------|
 | `schema.sql` | Complete database schema with tables, indexes, triggers, and seed data |
 | `setup-database.sh` | Automated setup script for Mac/Linux |
-| `setup-admin-demo.sql` | SQL script to create admin demo user |
-| `setup-admin-demo.js` | Node.js script to create admin demo user |
-| `set-admin-password.sql` | Legacy admin password update script |
 | `.env.example` | Environment variables template |
-
-## 🔑 Admin Demo Account
-
-The project includes an Admin Demo feature for easy testing:
-
-**Credentials:**
-- Email: `admin@gmail.com`
-- Password: `admin@123`
-
-**Setup:**
-```bash
-# Run from backend directory
-cd ../backend
-node src/setup-admin-demo.js
-```
-
-This creates a verified admin account that can be accessed via the "Admin Demo" button on the login page.
 
 ## 🚀 Quick Setup
 

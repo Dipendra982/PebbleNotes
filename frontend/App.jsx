@@ -15,10 +15,11 @@ import AdminUpload from './pages/AdminUpload';
 import Profile from './pages/Profile';
 import About from './pages/About';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 
 const Layout = ({ user, onLogout, children }) => {
   const location = useLocation();
-  const hideNavFooter = ['/signin', '/signup'].includes(location.pathname);
+  const hideNavFooter = ['/signin', '/signup', '/verify'].includes(location.pathname);
 
   return (
     <>
@@ -68,6 +69,7 @@ const App = () => {
           <Route path="/notes/:id" element={<NoteDetail user={user} />} />
           <Route path="/signin" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/verify" element={<VerifyEmail />} />
           <Route path="/reset" element={<ResetPassword />} />
           <Route path="/dashboard" element={<Dashboard user={user} />} />
           <Route path="/admin/upload" element={<AdminUpload user={user} />} />

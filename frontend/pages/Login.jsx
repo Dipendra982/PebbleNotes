@@ -14,11 +14,6 @@ const Login = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [awaiting, setAwaiting] = useState(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const [showAdminDemo, setShowAdminDemo] = useState(false);
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,53 +54,6 @@ const Login = () => {
         setAwaiting(payload);
         startCountdown(payload);
       }
-    }
-  };
-
-  const handleAdminDemoClick = () => {
-    setShowAdminDemo(true);
-    setAdminEmail('');
-    setAdminPassword('');
-    setError('');
-  };
-
-  const handleAdminDemoSubmit = async () => {
-    setError('');
-    if (!adminEmail || !adminPassword) {
-      setError('Please enter both email and password');
-      return;
-    }
-    setAdminLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: adminEmail, password: adminPassword })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
-      const { user, token } = data;
-      if (user && token) {
-        try {
-          localStorage.setItem('pebble_session', JSON.stringify({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            avatar: user.avatar,
-            token
-          }));
-        } catch {}
-      }
-      if (user?.role === 'ADMIN') {
-        navigate('/admin/upload');
-      } else {
-        setError('This account does not have admin access');
-        setAdminLoading(false);
-      }
-    } catch (err) {
-      setError(err.message);
-      setAdminLoading(false);
     }
   };
 
@@ -259,28 +207,7 @@ const Login = () => {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-2 bg-white text-slate-500 font-medium">OR</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleAdminDemoClick}
-              className="mt-4 w-full flex items-center justify-center py-3 px-4 rounded-xl text-sm font-bold text-slate-900 bg-gradient-to-r from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 transition border-2 border-amber-300 shadow-md"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-              </svg>
-              Admin Demo
-            </button>
-          </div>
-
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <p className="text-sm text-slate-600">
               Don't have an account? <Link to="/signup" className="font-bold text-blue-600 hover:text-blue-700">Sign up for free</Link>
             </p>
@@ -312,73 +239,6 @@ const Login = () => {
                 <button onClick={() => setShowReset(false)} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700">Cancel</button>
                 <button onClick={handleResetSubmit} disabled={resetLoading} className="px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 disabled:opacity-60">
                   {resetLoading ? 'Sending…' : 'Send Reset Link'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showAdminDemo && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-amber-200">
-              <div className="flex items-center mb-3">
-                <div className="bg-gradient-to-r from-amber-100 to-orange-100 p-2 rounded-lg mr-3">
-                  <svg className="w-6 h-6 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                  </svg>
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">Admin Demo Access</h2>
-              </div>
-              <p className="text-xs text-slate-500 mb-4">Enter admin credentials to access the dashboard</p>
-              {error && <p className="text-sm font-medium text-red-600 mb-4">{error}</p>}
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Admin Email</label>
-                  <input
-                    type="email"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-amber-400 focus:ring-0 outline-none transition bg-white"
-                    placeholder="admin@gmail.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-2">Admin Password</label>
-                  <div className="relative">
-                    <input
-                      type={showAdminPassword ? 'text' : 'password'}
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAdminDemoSubmit()}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-amber-400 focus:ring-0 outline-none transition bg-white pr-12"
-                      placeholder="••••••••"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowAdminPassword(s => !s)}
-                      className="absolute inset-y-0 right-3 my-auto px-2 text-xs font-bold text-slate-500 hover:text-slate-700"
-                    >
-                      {showAdminPassword ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-5 flex items-center justify-end space-x-2">
-                <button 
-                  onClick={() => {
-                    setShowAdminDemo(false);
-                    setError('');
-                  }} 
-                  className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleAdminDemoSubmit} 
-                  disabled={adminLoading}
-                  className="px-5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg text-xs font-bold hover:from-amber-600 hover:to-orange-600 disabled:opacity-60 shadow-md"
-                >
-                  {adminLoading ? 'Logging in…' : 'Access Dashboard'}
                 </button>
               </div>
             </div>
