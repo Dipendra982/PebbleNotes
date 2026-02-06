@@ -57,6 +57,37 @@ const Login = () => {
     }
   };
 
+  const handleAdminDemo = async () => {
+    setError('');
+    setEmail('admin@gmail.com');
+    setPassword('admin@123');
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'admin@gmail.com', password: 'admin@123' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      const { user, token } = data;
+      if (user && token) {
+        try {
+          localStorage.setItem('pebble_session', JSON.stringify({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            avatar: user.avatar,
+            token
+          }));
+        } catch {}
+      }
+      navigate('/admin/upload');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const startCountdown = (payload) => {
     const ms = 60000 - (Date.now() - (payload?.requestedAt || Date.now()));
     const initial = Math.max(0, Math.ceil(ms / 1000));
@@ -207,7 +238,28 @@ const Login = () => {
             </div>
           </form>
 
-          <div className="mt-8 text-center">
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="px-2 bg-white text-slate-500 font-medium">OR</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleAdminDemo}
+              className="mt-4 w-full flex items-center justify-center py-3 px-4 rounded-xl text-sm font-bold text-slate-900 bg-gradient-to-r from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 transition border-2 border-amber-300 shadow-md"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+              </svg>
+              Admin Demo
+            </button>
+          </div>
+
+          <div className="mt-6 text-center">
             <p className="text-sm text-slate-600">
               Don't have an account? <Link to="/signup" className="font-bold text-blue-600 hover:text-blue-700">Sign up for free</Link>
             </p>

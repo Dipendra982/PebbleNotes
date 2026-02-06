@@ -10,13 +10,17 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto; -- for gen_random_uuid()
 
 -- Drop existing tables if they exist (for clean setup)
+DROP TABLE IF EXISTS password_reset_tokens CASCADE;
+DROP TABLE IF EXISTS email_verification_tokens CASCADE;
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS favorites CASCADE;
+DROP TABLE IF EXISTS reviews CASCADE;
 DROP TABLE IF EXISTS purchases CASCADE;
 DROP TABLE IF EXISTS notes CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS sessions CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
-DROP TABLE IF EXISTS reviews CASCADE;
-DROP TABLE IF EXISTS favorites CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- Drop custom types if exist
 DROP TYPE IF EXISTS user_role CASCADE;
@@ -254,7 +258,7 @@ CREATE INDEX idx_activity_logs_created_at ON activity_logs(created_at DESC);
 
 CREATE TABLE email_verification_tokens (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     token VARCHAR(255) NOT NULL UNIQUE,
     token_hash VARCHAR(255) NOT NULL UNIQUE,
     expires_at TIMESTAMP NOT NULL,
