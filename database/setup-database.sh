@@ -19,9 +19,9 @@ NC='\033[0m' # No Color
 # Database configuration
 DB_NAME="pebblenotes"
 DB_USER="postgres"
-DB_PASSWORD="root"
+DB_PASSWORD="roots"
 DB_HOST="localhost"
-DB_PORT="5432"
+DB_PORT="5433"
 
 echo -e "${BLUE}"
 echo "============================================"
