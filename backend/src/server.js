@@ -61,6 +61,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     if (file.fieldname === 'preview') cb(null, previewDir);
     else if (file.fieldname === 'pdf') cb(null, pdfDir);
+    else if (file.fieldname === 'avatar') cb(null, avatarsDir);
     else cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {

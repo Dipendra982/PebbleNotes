@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { getStore, setStore } from './store';
+import { getSession, clearSession, setSession, verifySession } from './authUtils';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -31,14 +31,33 @@ const Layout = ({ user, onLogout, children }) => {
 };
 
 const App = () => {
-  // Initialize user immediately from localStorage to avoid refresh redirect
-  const [user, setUser] = useState(() => getStore.session());
+  // Initialize user from session
+  const [user, setUser] = useState(() => getSession());
+  const [isVerifying, setIsVerifying] = useState(true);
+
+  // Verify session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = getSession();
+      if (session && session.token) {
+        // Verify token is still valid
+        const validUser = await verifySession();
+        if (validUser) {
+          setUser(validUser);
+        } else {
+          setUser(null);
+        }
+      }
+      setIsVerifying(false);
+    };
+    checkSession();
+  }, []);
 
   // Component inside Router to sync user on route changes
   const RouteSync = () => {
     const location = useLocation();
     useEffect(() => {
-      const session = getStore.session();
+      const session = getSession();
       if (session && (!user || session.email !== user.email || session.role !== user.role)) {
         setUser(session);
       }
@@ -46,17 +65,35 @@ const App = () => {
     return null;
   };
 
-  // Session management will be implemented in future; login page handles redirects
-
   const handleLogout = () => {
     setUser(null);
-    setStore.session(null);
+    clearSession();
   };
 
-  const handleUserUpdate = (updatedUser) => {
+  const handleUserUpdate = (updatedUser, token) => {
     setUser(updatedUser);
-    setStore.session(updatedUser);
+    if (token) {
+      setSession(updatedUser, token);
+    } else {
+      // Keep existing token
+      const session = getSession();
+      if (session?.token) {
+        setSession(updatedUser, session.token);
+      }
+    }
   };
+
+  // Show loading while verifying session
+  if (isVerifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-sm text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
