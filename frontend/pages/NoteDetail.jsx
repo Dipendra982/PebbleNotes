@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { generateStudyInsights } from '../geminiService';
 import { setStore, getStore } from '../store';
+import { getSession, authFetch, makeAbsoluteUrl } from '../authUtils';
 
 const NoteDetail = ({ user }) => {
   const { id } = useParams();
@@ -24,18 +25,15 @@ const NoteDetail = ({ user }) => {
             subject: data.subject,
             description: data.description,
             price: Number(data.price || 0),
-            previewImageUrl: data.preview_image_url && data.preview_image_url.startsWith('/uploads') ? `http://localhost:4000${data.preview_image_url}` : data.preview_image_url,
-            pdfUrl: data.pdf_url && data.pdf_url.startsWith('/uploads') ? `http://localhost:4000${data.pdf_url}` : data.pdf_url,
+            previewImageUrl: makeAbsoluteUrl(data.preview_image_url),
+            pdfUrl: makeAbsoluteUrl(data.pdf_url),
             createdAt: data.created_at || new Date().toISOString()
           });
-          // After note loads, check purchase status (simple cached + server check)
-          const session = getStore.session();
-          const token = session?.token;
-          if (token) {
+          // After note loads, check purchase status
+          const session = getSession();
+          if (session?.token) {
             try {
-              const r = await fetch(`http://localhost:4000/api/purchases/check/${data.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
+              const r = await authFetch(`/api/purchases/check/${data.id}`);
               const j = await r.json().catch(() => ({ purchased: false }));
               setIsPurchased(Boolean(j?.purchased));
             } catch {}
@@ -78,8 +76,7 @@ const NoteDetail = ({ user }) => {
         setIsProcessing(false);
         return;
       }
-      const session = getStore.session();
-      const token = session?.token;
+      const session = getSession();
       const payload = {
         note_id: note.id,
         amount: note.price,
@@ -91,13 +88,9 @@ const NoteDetail = ({ user }) => {
 
       const persist = async () => {
         try {
-          if (token) {
-            const res = await fetch('http://localhost:4000/api/purchases', {
+          if (session?.token) {
+            const res = await authFetch('/api/purchases', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-              },
               body: JSON.stringify(payload)
             });
             const j = await res.json();

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { setSession } from '../authUtils';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -26,23 +27,18 @@ const Login = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
+      
       const { user, token } = data;
       if (user && token) {
-        try {
-          localStorage.setItem('pebble_session', JSON.stringify({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            avatar: user.avatar,
-            token
-          }));
-        } catch {}
-      }
-      if (user?.role === 'ADMIN') {
-        navigate('/admin/upload');
-      } else {
-        navigate('/marketplace');
+        // Use centralized session management
+        setSession(user, token);
+        
+        // Navigate based on role
+        if (user?.role === 'ADMIN') {
+          navigate('/admin/upload');
+        } else {
+          navigate('/marketplace');
+        }
       }
     } catch (err) {
       setError(err.message);

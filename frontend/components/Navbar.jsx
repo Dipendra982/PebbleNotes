@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { makeAbsoluteUrl } from '../authUtils';
 
 const Navbar = ({ user, onLogout }) => {
   const location = useLocation();
@@ -43,7 +44,7 @@ const Navbar = ({ user, onLogout }) => {
                 <button onClick={handleProfileClick} className="flex items-center space-x-2 focus:outline-none">
                   {user.avatar ? (
                     <img
-                      src={user.avatar}
+                      src={makeAbsoluteUrl(user.avatar)}
                       alt={user.name}
                       className="w-7 h-7 rounded-full object-cover border border-slate-200"
                     />

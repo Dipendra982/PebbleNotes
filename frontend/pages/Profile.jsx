@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getStore, setStore } from '../store';
 import { useNavigate } from 'react-router-dom';
+import { getSession, authFetch, makeAbsoluteUrl, setSession } from '../authUtils';
 
 const Profile = ({ user, onUserUpdate }) => {
   const navigate = useNavigate();
@@ -27,7 +27,8 @@ const Profile = ({ user, onUserUpdate }) => {
       email: user.email || '',
       password: ''
     });
-    setAvatarPreview(user.avatar || null);
+    // Convert relative avatar URL to absolute URL
+    setAvatarPreview(makeAbsoluteUrl(user.avatar) || null);
   }, [user, navigate]);
 
   if (!user) return null;
@@ -41,25 +42,27 @@ const Profile = ({ user, onUserUpdate }) => {
 
   const handleSaveChanges = async () => {
     try {
-      const session = getStore.session();
-      const token = session?.token;
-      if (!token) throw new Error('Please sign in again.');
+      const session = getSession();
+      if (!session?.token) throw new Error('Please sign in again.');
+      
       let newAvatarUrl = null;
       if (avatarFile) {
         const fd = new FormData();
         fd.append('avatar', avatarFile);
-        const up = await fetch('http://localhost:4000/api/users/avatar', {
+        const up = await authFetch('/api/users/avatar', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
           body: fd
         });
         const upJson = await up.json().catch(() => ({}));
         if (!up.ok) throw new Error(upJson?.error || 'Avatar upload failed');
         newAvatarUrl = upJson?.avatar || null;
+        // Update preview with absolute URL
+        if (newAvatarUrl) {
+          setAvatarPreview(makeAbsoluteUrl(newAvatarUrl));
+        }
       }
-      const res = await fetch('http://localhost:4000/api/users/profile', {
+      const res = await authFetch('/api/users/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: formData.name })
       });
       let updated = {};
@@ -71,10 +74,19 @@ const Profile = ({ user, onUserUpdate }) => {
         if (!res.ok) throw new Error(text || 'Update failed');
       }
       if (!res.ok) throw new Error(updated?.error || 'Update failed');
-      const updatedUser = { ...user, name: updated.name ?? formData.name, avatar: newAvatarUrl ?? updated.avatar ?? avatarPreview };
-      setStore.session(updatedUser);
+      const updatedUser = { 
+        ...user, 
+        name: updated.name ?? formData.name, 
+        avatar: newAvatarUrl ?? updated.avatar ?? user.avatar 
+      };
+      
+      // Update session with token
+      if (session?.token) {
+        setSession(updatedUser, session.token);
+      }
       if (typeof onUserUpdate === 'function') onUserUpdate(updatedUser);
       setIsEditing(false);
+      setAvatarFile(null); // Clear the file after successful upload
       setToast({ open: true, message: 'All changes saved successfully', type: 'success' });
       setTimeout(() => setToast({ open: false, message: '', type: 'success' }), 2200);
       setTimeout(() => navigate('/dashboard'), 1500);
@@ -325,12 +337,10 @@ const Profile = ({ user, onUserUpdate }) => {
                         return;
                       }
                       try {
-                        const session = getStore.session();
-                        const token = session?.token;
-                        if (!token) throw new Error('Please sign in again.');
-                        const res = await fetch('http://localhost:4000/api/users/change-password', {
+                        const session = getSession();
+                        if (!session?.token) throw new Error('Please sign in again.');
+                        const res = await authFetch('/api/users/change-password', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                           body: JSON.stringify({ current_password: passwords.current, new_password: passwords.next })
                         });
                         const j = await res.json();
@@ -365,17 +375,16 @@ const Profile = ({ user, onUserUpdate }) => {
                 onClick={async () => {
                   if (!confirm('Are you sure you want to delete your account?')) return;
                   try {
-                    const session = getStore.session();
-                    const token = session?.token;
-                    if (!token) throw new Error('Please sign in again.');
-                    const res = await fetch('http://localhost:4000/api/users/me', {
-                      method: 'DELETE',
-                      headers: { Authorization: `Bearer ${token}` }
+                    const session = getSession();
+                    if (!session?.token) throw new Error('Please sign in again.');
+                    const res = await authFetch('/api/users/me', {
+                      method: 'DELETE'
                     });
                     const j = await res.json();
                     if (!res.ok) throw new Error(j?.error || 'Failed to delete');
                     // Clear session and redirect
-                    setStore.session(null);
+                    const { clearSession } = await import('../authUtils');
+                    clearSession();
                     navigate('/signup');
                   } catch (e) {
                     setToast({ open: true, message: e.message, type: 'error' });

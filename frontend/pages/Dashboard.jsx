@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getStore } from '../store';
+import { getSession, authFetch, makeAbsoluteUrl } from '../authUtils';
 import NoteCard from '../components/NoteCard';
 
 const Dashboard = ({ user }) => {
@@ -15,13 +16,7 @@ const Dashboard = ({ user }) => {
       return;
     }
 
-    const session = getStore.session();
-    const token = session?.token;
-    const makeAbsolute = (url) => {
-      if (!url) return url;
-      if (typeof url === 'string' && url.startsWith('/uploads')) return `http://localhost:4000${url}`;
-      return url;
-    };
+    const session = getSession();
 
     if (user.role === 'ADMIN') {
       // Keep simple: local cache for admin uploads (college project scope)
@@ -31,10 +26,8 @@ const Dashboard = ({ user }) => {
       // Prefer backend purchases; fallback to local cache if API fails
       const fetchPurchases = async () => {
         try {
-          if (!token) throw new Error('No token');
-          const res = await fetch('http://localhost:4000/api/purchases', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          if (!session?.token) throw new Error('No token');
+          const res = await authFetch('/api/purchases');
           const data = await res.json();
           if (!res.ok) throw new Error(data?.error || 'Failed');
           const notes = (Array.isArray(data) ? data : []).map(p => ({
@@ -43,8 +36,8 @@ const Dashboard = ({ user }) => {
             subject: p.subject || 'General',
             description: p.description || '',
             price: Number(p.amount || 0),
-            previewImageUrl: makeAbsolute(p.preview_image_url),
-            pdfUrl: makeAbsolute(p.pdf_url),
+            previewImageUrl: makeAbsoluteUrl(p.preview_image_url),
+            pdfUrl: makeAbsoluteUrl(p.pdf_url),
             purchaseDate: p.purchased_at
           }));
           setPurchases(notes);

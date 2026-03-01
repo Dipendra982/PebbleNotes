@@ -46,7 +46,7 @@ const AdminUpload = ({ user }) => {
       const res = await fetch('http://localhost:4000/api/notes', {
         method: 'POST',
         headers: {
-          'x-admin-pass': 'root'
+          'x-admin-pass': 'roots'
         },
         body: fd
       });
