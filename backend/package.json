@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "db:setup": "cd ../database && ./setup-database.sh"
+    "db:setup": "cd ../database && ./setup-database.sh",
+    "test": "mocha test/api.test.js --timeout 30000"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -18,5 +19,9 @@
     "multer": "^2.0.2",
     "nodemailer": "^6.9.16",
     "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "supertest": "^6.3.3"
   }
 }
