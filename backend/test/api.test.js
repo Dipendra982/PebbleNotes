@@ -6,11 +6,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Prefer hitting backend directly; override with TEST_BASE_URL if needed
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:4000';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Helper to sign JWT for protected endpoints
 function signToken(user) {
     return jwt.sign(
         { id: user.id, email: user.email, name: user.name, role: user.role || 'USER' },
@@ -19,7 +17,6 @@ function signToken(user) {
     );
 }
 
-// Check if server is responding
 async function isServerUp() {
     try {
         const res = await request(BASE_URL).get('/api/health').timeout({ response: 2000, deadline: 4000 });
